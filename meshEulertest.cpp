@@ -60,7 +60,7 @@ Euler::W_state Trans_Right_Bound(Euler::W_state w){
   }
 //Initial condition function
 
-Euler::U_state initial_test1(double x, double y){
+Euler::U_state Sod_xdir(double x, double y){
 
   const double x_0 = 0.3;
   //Should do this assert(x_0 < x_max && x_0 > x_min); to avoid errors
@@ -85,21 +85,21 @@ Euler::U_state initial_test1(double x, double y){
     return u;
   }
 }
-/*
-Euler::U_state initial_test2(double x){
+
+Euler::U_state Sod_ydir(double x,double y){
   
-  const double x_0 = 0.5;
+  const double y_0 = 0.5;
   
   Euler e;
 
- if (x<=x_0){
+ if (y<=y_0){
     
-    const Euler::W_state wL(1.0,-2.0,0.4);
+   const Euler::W_state wL(1.0,0.0,0.0,1.0);
     Euler::U_state uL = e.CfromP(wL);
     return uL;
   }
-  if (x>x_0){
-    const Euler::W_state wR(1.0,2.0,0.4);
+  if (y>y_0){
+    const Euler::W_state wR(0.125,0.0,0.0,0.1);
     Euler::U_state uR = e.CfromP(wR);
     return uR;
   }
@@ -109,7 +109,7 @@ Euler::U_state initial_test2(double x){
     return u;
   }
 }
-
+/*
 Euler::U_state initial_test3(double x){
   
   const double x_0 = 0.5;
@@ -205,7 +205,7 @@ int main(int argc, char* argv[]){
   double x_min = 0, x_max = 1.0; //domain length
   double y_min = 0, y_max = 1.0;
   double cfl = 0.9;
-  int ncells = 10;
+  int ncells = 100;
   /*
   if(argc == 4){
     ncells = atof(argv[3]);
@@ -214,17 +214,37 @@ int main(int argc, char* argv[]){
   } */
  int nGhost = 1;
 
- Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, initial_test1, Trans_Left_Bound, Trans_Right_Bound, nGhost);
+ Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, Sod_ydir, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   //Mesh n(ncells, x_min, x_max, cfl, initial_test1, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   // double dt_m;
   // double dt_n;
   //double T_max = 0.2;
  
  //Print mesh to file
-  std::string file_init_m = "initial_test_mesh";
-  // std::string file_init_n = "initial_w_WAF";
-  m.save_u_state(file_init_m);
-  // n.save_w_state(file_init_n);
+  std::string file_init_u = "initial_test_mesh";
+  std::string file_init_w = "initial_test_w_";
+  m.save_u_state(file_init_u);
+  m.save_w_state(file_init_w);
+  // n.save_w_state(file_init_);
+
+  //Need to test modified applyBC()
+  m.applyBC();
+  std::cout << "Testing boundary conditions. Output points on each of the boudaries"<<"\n";
+  std::cout << "Left boundary with transmissive conditions" << "\n";
+  std::cout << m.Bdata(0,5).rho << "\n";
+  std::cout << "Right boundary with transmissive conditions" << "\n";
+  std::cout << m.Bdata(nGhost,5).rho << "\n";
+  std::cout << "Top boundary with transmissive conditions" << "\n";
+  std::cout << m.Bdata(5,nGhost).rho << "\n";
+  std::cout << "Bottom boundary with transmissive conditions" << "\n";
+  std::cout << m.Bdata(5,0).rho << "\n";
+  //Need to test calculate_dt();
+
+  std::cout << "Testing calculate_dt()" << "\n";
+  double dt;
+  dt = m.Calculate_dt();
+  std::cout << "The time step is : " << dt << "\n";
+
  
   /*
 

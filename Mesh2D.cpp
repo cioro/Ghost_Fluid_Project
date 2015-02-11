@@ -36,6 +36,7 @@ Mesh::Mesh(int Ancells, double Ax_min, double Ax_max,double Ay_min,double Ay_max
        Bdata(i,j) = f(xaxis(i),yaxis(j));
 		     }
      y_counter=0;
+     
      }
  }
 
@@ -79,6 +80,7 @@ void Mesh::print()const
     for (int j = nGhost; j<(ncells+nGhost); j++){
       std::cout << xaxis(i) << "\t" << yaxis(j) << "\t" << Bdata(i,j).rho <<"\t"<< Bdata(i,j).moment_u <<"\t" << Bdata(i,j).moment_v <<"\t" << Bdata(i,j).energy << "\n";
     }
+    std::cout <<"\n";
   }
      //std::cout << *itaxis << "\t";
      //(*itdata).print();
@@ -104,91 +106,148 @@ void Mesh::save_u_state(std::string filename)const
     {
       for(int j=nGhost; j<ncells+nGhost; j++){
 	fprintf(outfile, "%.4f \t %.4f \t %.4f \t %.4f \t %.4f \t %.4f \n", xaxis(i), yaxis(j),Bdata(i,j).rho, Bdata(i,j).moment_u,Bdata(i,j).moment_v,Bdata(i,j).energy);
-      //  itaxis++;
-      //itdata++;
       }
+      fprintf(outfile,"\n");
   }
   fclose(outfile);
   
 }
-/*
+
 //Prints to a file the 1D vector of primitive variables and the exact solution 
-void Mesh::save_w_state(std::string filename, Euler::U_state (*exact)(double x))const
+void Mesh::save_w_state(std::string filename)const
 {
   std::string dir = "data/";
   std::stringstream ss;
   ss << dir << filename << time;
   std::string tmppath = ss.str();
   
-
+  std::cout << "CREATING FILE \n";
   FILE * outfile = fopen(tmppath.c_str(),"w");
-  std::vector<Euler::U_state>::const_iterator itdata= data.begin()+nGhost;
-  std::vector<double>::const_iterator itaxis= axis.begin()+nGhost;
+  //std::vector<Euler::U_state>::const_iterator itdata= data.begin()+nGhost;
+  //std::vector<double>::const_iterator itaxis= axis.begin()+nGhost;
  
-  for(int i=1; i<ncells+nGhost; i++)
+  Euler::W_state w_print;
+
+for(int i=nGhost; i<ncells+nGhost; i++)
     {
+      for(int j=nGhost; j<ncells+nGhost; j++){
+	w_print = ptr_euler->PfromC(Bdata(i,j));
+
+	fprintf(outfile, "%.4f \t %.4f \t %.4f \t %.4f \t %.4f \t %.4f \n", xaxis(i), yaxis(j),w_print.rho,w_print.u,w_print.v,w_print.P);
+      }
+      fprintf(outfile,"\n");
       
-      Euler::W_state w_print_approx = ptr_euler->PfromC(*itdata);
-      //Euler::W_state w_print_exact = ptr_euler->PfromC(*itaxis);
-      
-      fprintf(outfile, "%.4f \t %.4f \t %.4f \t %.4f \t %.4f \n", *itaxis, w_print_approx.rho,w_print_approx.u,w_print_approx.P, ptr_euler->int_energy(ptr_euler->PfromC((*itdata)) ) );
-      itaxis++;
-      itdata++;
-  }
-  fclose(outfile);
+    }
+      fclose(outfile);
   
 }
 
 //Implements the boundary conditions. The actual boundary condition function should be in the main file
 void Mesh::applyBC(){
-  
-  for(int j = 0; j < nGhost; j++){
 
-  Euler::W_state w_Left_End = ptr_euler -> PfromC(data[j+nGhost]);
-  Euler::W_state w_BC_Left = boundary1(w_Left_End);
-  data[nGhost-1-j]= ptr_euler -> CfromP(w_BC_Left);
+  //Left Boundary of Square Mesh
+  //Loop over Ghost left columns
+  for(int x_dir = 0; x_dir < nGhost; x_dir++){
 
+    //Loop over each row
+    for(int y_dir = nGhost; y_dir<ncells+nGhost; y_dir++){
+
+      Euler::W_state w_Left_End = ptr_euler -> PfromC(Bdata(x_dir+nGhost,y_dir));
+      Euler::W_state w_BC_Left = boundary1(w_Left_End);
+      Bdata(nGhost-1-x_dir,y_dir) = ptr_euler-> CfromP(w_BC_Left);
+
+    }
+  }
+  //Right Boundary of Square Mesh
+  //Loop over Ghost right columns
+  for(int x_dir = 0; x_dir < nGhost; x_dir++ ){
+    //Loop over each row
+    for (int y_dir = nGhost; y_dir<ncells+nGhost; y_dir++){
+      Euler::W_state w_Right_End = ptr_euler -> PfromC(Bdata ((nGhost+ncells-1)-x_dir,y_dir));
+	Euler::W_state w_BC_Right = boundary2(w_Right_End);
+	Bdata(x_dir+(nGhost+ncells),y_dir)= ptr_euler -> CfromP(w_BC_Right);
+      }
   }
 
-  for(int i = 0; i < nGhost; i++ ){
-    Euler::W_state w_Right_End = ptr_euler -> PfromC(data[(ncells+nGhost-1)-i]);
-  Euler::W_state w_BC_Right = boundary2(w_Right_End);
-  data[(nGhost + ncells)+i]= ptr_euler -> CfromP(w_BC_Right);
+
+  //Top Boundary of Square Mesh
+  //Loop over Ghost top rows
+  for(int y_dir = 0; y_dir < nGhost; y_dir++){
+
+    //Loop over each column
+    for(int x_dir = nGhost; x_dir<ncells+nGhost; x_dir++){
+
+      Euler::W_state w_Left_End = ptr_euler -> PfromC(Bdata(x_dir,y_dir+nGhost));
+      Euler::W_state w_BC_Left = boundary1(w_Left_End);
+      Bdata(x_dir,nGhost-1-y_dir) = ptr_euler-> CfromP(w_BC_Left);
+      
+      //data[nGhost-1-j]= ptr_euler -> CfromP(w_BC_Left);
+
+    }
   }
+
+  //Bottom Boundary of Square Mesh
+  //Loop over Ghost bottom rows
+  for(int y_dir = 0; y_dir < nGhost; y_dir++ ){
+    //Loop over each column
+    for (int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
+	Euler::W_state w_Right_End = ptr_euler -> PfromC(Bdata(x_dir,(ncells+nGhost)-y_dir));
+	Euler::W_state w_BC_Right = boundary2(w_Right_End);
+	Bdata(x_dir,(nGhost + ncells)+y_dir)= ptr_euler -> CfromP(w_BC_Right);
+      }
+  }
+
+
+
+
 }
 
 //Calculates the adquate size of the time step dt. See page 183 from Toro(ed.2009)
 double Mesh::Calculate_dt(){
-  std::vector<Euler::U_state>::iterator itdata = data.begin()+nGhost;
-  double speed=0.0;
-  double speedtemp=0.0;
-    
+
+  double speed_x=0.0;
+  double speedtemp_x=0.0;
+  double speed_y=0.0;
+  double speedtemp_y=0.0;
+  double min_coef = 0.0;//This is min of (S_x/dx,S_y/dy)-The minimum of the wave speed over the space step.
   for(int i=nGhost; i<nGhost+ncells;i++){
-    Euler::W_state w = ptr_euler->PfromC(*itdata);
-    speedtemp = ptr_euler->a(w) + fabs(w.u);
-    if(fabs(speedtemp) > fabs(speed)){
-      speed = speedtemp;
-    }          
-    itdata++;
+    for(int j = nGhost; j<nGhost+ncells;j++){
+
+      Euler::W_state w = ptr_euler->PfromC(Bdata(i,j));
+      speedtemp_x = ptr_euler->a(w) + fabs(w.u);
+      speedtemp_y = ptr_euler->a(w) + fabs(w.v);
+    
+      if(fabs(speedtemp_x) > fabs(speed_x)){
+	speed_x = speedtemp_x;
+      }
+      if(fabs(speedtemp_y) > fabs(speed_y)){
+	speed_x = speedtemp_y;
+      }          
+
+    }
+
+
   }
 
+  min_coef = std::min((dx/speed_x),(dy/speed_y));
   double dt;
   //If time < 5 then dt = 0.2
-  if(time < 10){
+  
+ if(time < 10){
     double  cfl_init = 0.2;
-    dt=(cfl_init*dx)/speed;
+    dt= cfl_init*min_coef;
     
     std::cout << "Inside calculate dt function, cfl = " << cfl_init << "\n"; 
 
     return dt;
 
-  }
+    }
   std::cout << "Inside calculate dt function, cfl = " << cfl << "\n";
 
-  dt=(cfl*dx)/speed;
+  dt=(cfl*dx)*min_coef;
   return dt;
 }
-
+/*
 //HLLC flux calculator (this is a free function not a member function of class Mesh)
 //Check Toro(ed.2009) p.331 for summary of HLLC method
 std::vector<Euler::U_state> HLLC(Mesh &m){

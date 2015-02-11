@@ -1,0 +1,8 @@
+set term postscript enhanced colour size 10,7
+set output "2Dmap_test.eps"
+
+
+set view map
+set pm3d
+unset surface
+splot "initial_test_mesh0" using 1:2:3

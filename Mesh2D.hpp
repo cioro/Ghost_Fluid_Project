@@ -54,13 +54,14 @@ public:
   void print()const;
   void save_u_state(std::string name)const;
   void save_w_state(std::string name)const;
-  /*
+ 
  //Apply BCs
-  void applyBC();
   
+  void applyBC();
+   
   //Calculate dt 
   double Calculate_dt();
-
+  /*
   void reset(Euler::U_state (*f)(double x));
   // //Mesh update
   //  //  void Mesh_update(Mesh &m, std::vector<Euler::U_state> &flux,double dt);
