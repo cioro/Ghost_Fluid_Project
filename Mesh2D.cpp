@@ -548,15 +548,10 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
 
     U_state_L = input_data(i);
     U_state_R = input_data(i+1);
-    U_state_L.print();
-    U_state_R.print();
 
     W_L = e.PfromC(U_state_L);
     W_R = e.PfromC(U_state_R);
-
-    W_L.print();
-    W_R.print();
-
+    
     //---------Pressure estimate-------------------------
 
     P_L = W_L.P;
@@ -679,12 +674,12 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       dq_shear = (e.PfromC(U_state_L_star)).v-(e.PfromC(U_state_R_star)).v;
       dq_r = U_state_R_star.rho - U_state_R.rho;
 
-      std::cout << "About to calculate the HLLC values at the right and left interface to our current interface" << "\n";
+      //std::cout << "About to calculate the HLLC values at the right and left interface to our current interface" << "\n";
 
       left_interface = HLLC_U_state(input_data(i-1), input_data(i));
       right_interface = HLLC_U_state(input_data(i+1),input_data(i+2));
       
-      std::cout << " calculate left and right interfaces " << "\n";
+      //std::cout << " calculate left and right interfaces " << "\n";
 
       dq_l_left_interface = left_interface(0).rho-left_interface(1).rho;
       dq_star_left_interface = left_interface(1).rho - left_interface(2).rho;
@@ -697,9 +692,9 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       dq_r_right_interface = right_interface(2).rho - right_interface(3).rho;
       dq_shear_right_interface =  (e.PfromC(right_interface(1))).v-(e.PfromC(right_interface(2))).v;
       
-      std::cout << "We finished calculating " << "\n";
+      //std::cout << "We finished calculating " << "\n";
 
-      
+      /*
       std::cout << "This is the " << i << " element" <<"\n";
 
       std::cout << "The 4 states at the interface are: " << "\n";
@@ -710,7 +705,7 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       std::cout << "The jumps are dq_l,dq_star ,dq_r " << dq_l <<"\t" << dq_star << "\t" << dq_r << "\t" << dq_shear << "\n";
       std::cout << " The jumps of the right interfacare are " << dq_l_right_interface <<"\t" << dq_star_right_interface << "\t" << dq_r_right_interface << "\t" << dq_shear_right_interface << "\n"; 
       std::cout << " The jumps of the left interfacare are " << dq_l_left_interface <<"\t" << dq_star_left_interface << "\t" << dq_r_left_interface << "\t" << dq_shear_left_interface << "\n"; 
-
+      */
 
       /*
       std::cout << "The nearby states are " << "\n";
@@ -814,11 +809,11 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       superbee_star = superbee(r_star, fabs(c_star));
       superbee_r = superbee(r_R, fabs(c_R));
       superbee_shear = superbee(r_shear,fabs(c_shear));
-
+      /*
       std::cout << "The ratios are r_L, r_star, r_R,r_shear " << r_L<<"\t" << r_star << "\t" << r_R << "\t"<<r_shear<<"\n"; 
 
       std::cout << "The minmod lim m_l, m_star, m_r, m_shear   " << minmod_l <<"\t" <<minmod_star << "\t" << minmod_r << "\t" << minmod_shear << "\n";  
-      
+      */
        if(minmod_shear > minmod_star){
 	 
 	 
@@ -923,10 +918,10 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
        */
        // 
       //---------------------//      
-
+  f_idx++;
   }
   //Logic in case of y-sweep;
-
+  /*
   if (sweep == std::string("x-sweep")){
 
   }else if(sweep == std::string("y-sweep")){
@@ -937,8 +932,12 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
   }else{
     std::cout <<"Sweep not specified. Fail to compute 1D WAF" << "\n";
   }
+  */
 
-  f_idx++;
+  for(int i = 0; i < ncells+1; i++){
+    std::cout<< "About to return flux. And the value of the 1D ith flux is : " << "\n";
+    flux(i).print();
+  }
   return flux;
       
       
