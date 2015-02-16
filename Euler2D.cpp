@@ -11,7 +11,25 @@ void Euler::W_state::print()const {
   std::cout << " rho\t " << rho << "\t u \t " << u << "\t v \t" << v << " \t P \t" << P << "\n";
 
 }
+double Euler::W_state::get_var(VARIABLE v){
+  switch(v){
+  case RHO:
+    return rho;
+    break;
+  case U:
+    return u;
+    break;
+  case V:
+    return v;
+    break; 
+  case PRESSURE:
+    return P;
+    break;
+  default:
+    return -1;
+  }
 
+}
 
 Euler::U_state::U_state() : rho(0), moment_u(0), moment_v(0), energy(0) {}
 
@@ -24,7 +42,24 @@ void Euler::U_state::print()const {
 
 }
 
-
+double Euler::U_state::get_var(VARIABLE v){
+  switch(v){
+  case RHO:
+    return rho;
+    break;
+  case MOMENT_U:
+    return moment_u;
+    break;
+  case MOMENT_V:
+    return moment_v;
+    break; 
+  case ENERGY:
+    return energy;
+    break;
+  default:
+    return -1;
+  }
+}
 double Euler::a(){
 return 0;
 }
@@ -46,7 +81,7 @@ double Euler::int_energy(const Euler::W_state& w){
 }
 
 //The Formula come from Toro(ed.2009) p.89
-Euler::U_state Euler::flux(Euler::U_state& U){
+Euler::U_state Euler::flux(const Euler::U_state& U){
   double Pressure = ((gamma-1)*(U.energy-0.5*(U.moment_u*U.moment_u + U.moment_v*U.moment_v)/U.rho));
   double f1 = U.moment_u;
   double f2 = U.moment_u*U.moment_u/U.rho + Pressure;
@@ -57,7 +92,8 @@ Euler::U_state Euler::flux(Euler::U_state& U){
   
 }
 
-Euler::U_state Euler::flux_y(Euler::U_state& U){
+
+Euler::U_state Euler::flux_y(const Euler::U_state& U){
  
   double Pressure = ((gamma-1)*(U.energy-0.5*(U.moment_u*U.moment_u + U.moment_v*U.moment_v)/U.rho));
   double f1 = U.moment_v;

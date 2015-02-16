@@ -512,19 +512,19 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
   
   
   //Courant number for each wave speed
-  double c_L,c_star,c_R,c_sheer;
+  double c_L,c_star,c_R,c_shear;
  
 
   //Ratio for each wave speed
-  double r_L,r_star,r_R,r_sheer;
+  double r_L,r_star,r_R,r_shear;
   double dq_l,dq_l_right_interface, dq_l_left_interface;
   double dq_star, dq_star_right_interface, dq_star_left_interface;
   double dq_r, dq_r_right_interface, dq_r_left_interface;
-  double dq_sheer, dq_sheer_right_interface, dq_sheer_left_interface;
+  double dq_shear, dq_shear_right_interface, dq_shear_left_interface;
 
   //Limiter functions
-  double minmod_l,minmod_star,minmod_r,minmod_sheer;
-  double superbee_l,superbee_star,superbee_r,superbee_sheer;
+  double minmod_l,minmod_star,minmod_r,minmod_shear;
+  double superbee_l,superbee_star,superbee_r,superbee_shear;
 
   blitz::Array<Euler::U_state,1> left_interface;
   blitz::Array<Euler::U_state,1> right_interface;
@@ -533,12 +533,16 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
 
   //Dummy variable used to calculate shear wave max speed
   double shear_speed;
-
-
+  
+  //Middle state used in WAF calculation to account for the presence of a shear wave.
+  Euler::W_state w_middle_state;
+  Euler::U_state F_ML;
+  Euler::U_state F_MR;
+  int f_idx = 0;
   std::cout <<"Inside WAF_1D flux function " << "\n";
   //Loop over whole domain
   for(int i = nGhost-1; i < ncells + nGhost; i++){
-    
+
     std::cout << "Inside the main loop. Iteration: " << i << "\n";
     //Select U_state and initialise W_state
 
@@ -663,7 +667,7 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       //To calculate the Cfl number associated with the shear wave I need a shear wave speed.From p.553 from Toro
       // I can deduce that the contact wave and the shear wave have the same wave speed. 
 
-      c_sheer = dt*S_R/ds ;
+      c_shear = dt*S_R/ds ;
 
 
       //Compute the ratios
@@ -672,7 +676,7 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       //dq for the interface we are trying to solve for i+1/2
       dq_l = U_state_L.rho-U_state_L_star.rho;
       dq_star = U_state_L_star.rho - U_state_R_star.rho;
-      dq_sheer = (e.PfromC(U_state_L_star)).v-(e.PfromC(U_state_R_star)).v;
+      dq_shear = (e.PfromC(U_state_L_star)).v-(e.PfromC(U_state_R_star)).v;
       dq_r = U_state_R_star.rho - U_state_R.rho;
 
       std::cout << "About to calculate the HLLC values at the right and left interface to our current interface" << "\n";
@@ -685,17 +689,17 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       dq_l_left_interface = left_interface(0).rho-left_interface(1).rho;
       dq_star_left_interface = left_interface(1).rho - left_interface(2).rho;
       dq_r_left_interface = left_interface(2).rho - left_interface(3).rho;
-      dq_sheer_left_interface = (e.PfromC(left_interface(1))).v-(e.PfromC(left_interface(2))).v;
+      dq_shear_left_interface = (e.PfromC(left_interface(1))).v-(e.PfromC(left_interface(2))).v;
 
 
       dq_l_right_interface = right_interface(0).rho-right_interface(1).rho;
       dq_star_right_interface = right_interface(1).rho - right_interface(2).rho;
       dq_r_right_interface = right_interface(2).rho - right_interface(3).rho;
-      dq_sheer_right_interface =  (e.PfromC(right_interface(1))).v-(e.PfromC(right_interface(2))).v;
+      dq_shear_right_interface =  (e.PfromC(right_interface(1))).v-(e.PfromC(right_interface(2))).v;
       
       std::cout << "We finished calculating " << "\n";
 
-      /*
+      
       std::cout << "This is the " << i << " element" <<"\n";
 
       std::cout << "The 4 states at the interface are: " << "\n";
@@ -703,34 +707,39 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       U_state_L_star.print();
       U_state_R_star.print();
       U_state_R.print();
-      std::cout << "The jumps are dq_l,dq_star ,dq_r " << dq_l <<"\t" << dq_star << "\t" << dq_r <<"\n";
+      std::cout << "The jumps are dq_l,dq_star ,dq_r " << dq_l <<"\t" << dq_star << "\t" << dq_r << "\t" << dq_shear << "\n";
+      std::cout << " The jumps of the right interfacare are " << dq_l_right_interface <<"\t" << dq_star_right_interface << "\t" << dq_r_right_interface << "\t" << dq_shear_right_interface << "\n"; 
+      std::cout << " The jumps of the left interfacare are " << dq_l_left_interface <<"\t" << dq_star_left_interface << "\t" << dq_r_left_interface << "\t" << dq_shear_left_interface << "\n"; 
+
+
+      /*
       std::cout << "The nearby states are " << "\n";
       std::cout << "The interface to the left of i+1/2 " << "\n";
       std::cout << "U_L : " << "\n";
-      left_interface[0].print();
+      left_interface(0).print();
       std::cout << "U_L_star : " << "\n";
-      left_interface[1].print();
+      left_interface(1).print();
       std::cout << "U_R_star : " << "\n";
-      left_interface[2].print();
+      left_interface(2).print();
       std::cout << "U_R : " << "\n";
-      left_interface[3].print();
+      left_interface(3).print();
 
 
-      //std::cout << "The interface to the right of i+1/2 " << "\n";
-     // std::cout << "U_L : " << "\n";
-     // right_interface[0].print();
-     // std::cout << "U_L_star : " << "\n";
-      //right_interface[1].print();
-      //std::cout << "U_R_star : " << "\n";
-      //right_interface[2].print();
-      //std::cout << "U_R : " << "\n";
-     // right_interface[3].print();
+      std::cout << "The interface to the right of i+1/2 " << "\n";
+      std::cout << "U_L : " << "\n";
+      right_interface(0).print();
+      std::cout << "U_L_star : " << "\n";
+      right_interface(1).print();
+      std::cout << "U_R_star : " << "\n";
+      right_interface(2).print();
+      std::cout << "U_R : " << "\n";
+      right_interface(3).print();
+      */
+      std::cout << "\n";
       
-   //   std::cout << "\n";
-   //   */
    
      
-      
+      //---------Computing ratios from d_q jumps--------------------//      
       if(dq_l > 0){
 	if (c_L > 0){
 	  r_L = dq_l_left_interface/dq_l;
@@ -775,20 +784,20 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
 	    r_R = 0.0;
 	  } 
 
-//----------Sheer jump and ratio ---------------------------
-	  if(dq_sheer > 0){
+//----------Shear jump and ratio ---------------------------
+	  if(dq_shear > 0){
 
-	    if (c_sheer > 0){
-	      r_sheer = dq_sheer_left_interface/dq_sheer;
+	    if (c_shear > 0){
+	      r_shear = dq_shear_left_interface/dq_shear;
 	    }
 	    else{
-	      r_sheer = dq_sheer_right_interface/dq_sheer;
+	      r_shear = dq_shear_right_interface/dq_shear;
 	    }
 	  }
 	  else{
-	    minmod_sheer = 0.0;
-	    superbee_sheer = 0.0;
-	    r_sheer = 0.0;
+	    minmod_shear = 0.0;
+	    superbee_shear = 0.0;
+	    r_shear = 0.0;
 	  } 
    
 //----------------------------------------------------------
@@ -799,73 +808,137 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
       minmod_l = minmod(r_L,fabs(c_L));
       minmod_star = minmod(r_star, fabs(c_star));
       minmod_r = minmod(r_R,fabs(c_R));
-      minmod_sheer = minmod(r_sheer,fabs(c_sheer));
+      minmod_shear = minmod(r_shear,fabs(c_shear));
 
       superbee_l = superbee(r_L, fabs(c_L));
       superbee_star = superbee(r_star, fabs(c_star));
       superbee_r = superbee(r_R, fabs(c_R));
-      superbee_sheer = superbee(r_sheer,fabs(c_sheer));
+      superbee_shear = superbee(r_shear,fabs(c_shear));
 
-      std::cout << "The ratios are r_L, r_star, r_R,r_shear " << r_L<<"\t" << r_star << "\t" << r_R << "\t"<<r_sheer<<"\n";
-       //       std::cout << "The superbee lim m_l m_star m_r  " << superbee_l <<"\t" <<superbee_star << "\t" << superbee_r <<"\n";  
+      std::cout << "The ratios are r_L, r_star, r_R,r_shear " << r_L<<"\t" << r_star << "\t" << r_R << "\t"<<r_shear<<"\n"; 
+
+      std::cout << "The minmod lim m_l, m_star, m_r, m_shear   " << minmod_l <<"\t" <<minmod_star << "\t" << minmod_r << "\t" << minmod_shear << "\n";  
       
-       if(minmod_sheer > minmod_star){
+       if(minmod_shear > minmod_star){
+	 
+	 
+	 w_middle_state.rho = U_state_R_star.rho;
+	 w_middle_state.u = (e.PfromC(U_state_R_star)).u;
+	 w_middle_state.v = W_L.v;
+	 w_middle_state.P = (e.PfromC(U_state_R)).P;
+
+
+	 F_ML = e.flux((e.CfromP(w_middle_state)));
+
+	 flux(f_idx).rho =  0.5*(F_L.rho+F_R.rho)-0.5*(sign(c_L)*minmod_l*(F_L_star.rho-F_L.rho) +\
+						   sign(c_shear)*minmod_shear*(F_ML.rho-F_L_star.rho) +\
+						   sign(c_star)*minmod_star*(F_R_star.rho-F_ML.rho)+\
+						   sign(c_R)*minmod_r*(F_R.rho-F_R_star.rho));
+
+	 flux(f_idx).moment_u =  0.5*(F_L.moment_u+F_R.moment_u)-0.5*(sign(c_L)*minmod_l*(F_L_star.moment_u-F_L.moment_u) + \
+						   sign(c_shear)*minmod_shear*(F_ML.moment_u-F_L_star.moment_u) +\
+						   sign(c_star)*minmod_star*(F_R_star.moment_u-F_ML.moment_u)+\
+						   sign(c_R)*minmod_r*(F_R.moment_u-F_R_star.moment_u));
+
+	 flux(f_idx).moment_v =  0.5*(F_L.moment_v+F_R.moment_v)-0.5*(sign(c_L)*minmod_l*(F_L_star.moment_v-F_L.moment_v) + \
+						   sign(c_shear)*minmod_shear*(F_ML.moment_v-F_L_star.moment_v) +\
+						   sign(c_star)*minmod_star*(F_R_star.moment_v-F_ML.moment_v)+\
+						   sign(c_R)*minmod_r*(F_R.moment_v-F_R_star.moment_v));
+	 
+
+	 flux(f_idx).energy =  0.5*(F_L.energy+F_R.energy)-0.5*(sign(c_L)*minmod_l*(F_L_star.energy-F_L.energy) + \
+						   sign(c_shear)*minmod_shear*(F_ML.energy-F_L_star.energy) +\
+						   sign(c_star)*minmod_star*(F_R_star.energy-F_ML.energy)+\
+						   sign(c_R)*minmod_r*(F_R.energy-F_R_star.energy));
 
 	 std::cout << "The shear wave is before the contact wave" << "\n"; 
-	   }else if(minmod_sheer < minmod_star){
+
+       }else if(minmod_shear < minmod_star){
 	 std::cout << "The shear wave is behind the contact wave." << "\n";
 	 std::cout << "The resulting middle state is rho*l and v_R"<< "\n";
-       }else{
-	 std::cout <<"Something went wrong in the limiter calcualtion" << "\n";
-       }
-//Compute intercell flux at i+1/2 (*itflux).rho, (*itflux).momentum, (*itflux).energy
-      //For 1D N= 3, total number of waves
-      /*
-       if(limiter == std::string("minmod")){
 
-	 (*itflux).rho = 0.5*(F_L.rho + F_R.rho) - 0.5* (sign(c_L)*minmod_l*(F_L_star.rho-F_L.rho) + \
-						     sign(c_star)*minmod_star*(F_R_star.rho-F_L_star.rho) + \
-						     sign(c_R)*minmod_r*(F_R.rho-F_R_star.rho));
+	 w_middle_state.rho = U_state_L_star.rho;
+	 w_middle_state.u = (e.PfromC(U_state_R_star)).u;
+	 w_middle_state.v = W_R.v;
+	 w_middle_state.P = (e.PfromC(U_state_R)).P;
 
-	 (*itflux).momentum = 0.5*(F_L.momentum + F_R.momentum) - 0.5* (sign(c_L)*minmod_l*(F_L_star.momentum-F_L.momentum) + \
-						     sign(c_star)*minmod_star*(F_R_star.momentum-F_L_star.momentum) + \
-						     sign(c_R)*minmod_r*(F_R.momentum-F_R_star.momentum));
+
+
+	 F_MR = e.flux((e.CfromP(w_middle_state)));
+
+	 flux(f_idx).rho =  0.5*(F_L.rho+F_R.rho)-0.5*(sign(c_L)*minmod_l*(F_L_star.rho-F_L.rho) + \
+						   sign(c_shear)*minmod_shear*(F_MR.rho-F_L_star.rho) +\
+						   sign(c_star)*minmod_star*(F_R_star.rho-F_MR.rho)+\
+						   sign(c_R)*minmod_r*(F_R.rho-F_R_star.rho));
+
+	 flux(f_idx).moment_u =  0.5*(F_L.moment_u+F_R.moment_u)-0.5*(sign(c_L)*minmod_l*(F_L_star.moment_u-F_L.moment_u) + \
+								  sign(c_shear)*minmod_shear*(F_MR.moment_u-F_L_star.moment_u) + \
+								  sign(c_star)*minmod_star*(F_R_star.moment_u-F_MR.moment_u)+ \
+								  sign(c_R)*minmod_r*(F_R.moment_u-F_R_star.moment_u));
+
+	 flux(f_idx).moment_v =  0.5*(F_L.moment_v+F_R.moment_v)-0.5*(sign(c_L)*minmod_l*(F_L_star.moment_v-F_L.moment_v) + \
+								  sign(c_shear)*minmod_shear*(F_MR.moment_v-F_L_star.moment_v) + \
+								  sign(c_star)*minmod_star*(F_R_star.moment_v-F_MR.moment_v)+ \
+								  sign(c_R)*minmod_r*(F_R.moment_v-F_R_star.moment_v));
+
+	 	 flux(f_idx).energy =  0.5*(F_L.energy+F_R.energy)-0.5*(sign(c_L)*minmod_l*(F_L_star.energy-F_L.energy) + \
+								    sign(c_shear)*minmod_shear*(F_MR.energy-F_L_star.energy) + \
+								    sign(c_star)*minmod_star*(F_R_star.energy-F_MR.energy)+	\
+								    sign(c_R)*minmod_r*(F_R.energy-F_R_star.energy));
+		 
+
+       }else if(minmod_shear == minmod_star){
+	 //No middle state exist. Normal WAF calculation.
+	 std::cout << "Standard WAF being calculated.No middle state" << "\n";
+	 flux(f_idx).rho = 0.5*(F_L.rho+F_R.rho)-0.5*(sign(c_L)*minmod_l*(F_L_star.rho-F_L.rho) + \
+						  sign(c_star)*minmod_star*(F_R_star.rho-F_L_star.rho) + \
+						  sign(c_R)*minmod_r*(F_R.rho-F_R_star.rho));
+
+	 flux(f_idx).moment_u=0.5*(F_L.moment_u+F_R.moment_u)-0.5*(sign(c_L)*minmod_l*(F_L_star.moment_u-F_L.moment_u) + \
+							       sign(c_star)*minmod_star*(F_R_star.moment_u-F_L_star.moment_u) + \
+							       sign(c_R)*minmod_r*(F_R.moment_u-F_R_star.moment_u));
+
+	 flux(f_idx).moment_v=0.5*(F_L.moment_v+F_R.moment_v)-0.5*(sign(c_L)*minmod_l*(F_L_star.moment_v-F_L.moment_v) + \
+							       sign(c_star)*minmod_star*(F_R_star.moment_v-F_L_star.moment_v) + \
+							       sign(c_R)*minmod_r*(F_R.moment_v-F_R_star.moment_v));
 						     
-	 (*itflux).energy = 0.5*(F_L.energy + F_R.energy) - 0.5* (sign(c_L)*minmod_l*(F_L_star.energy-F_L.energy) + \
+
+	 flux(f_idx).energy = 0.5*(F_L.energy + F_R.energy) - 0.5* (sign(c_L)*minmod_l*(F_L_star.energy-F_L.energy) + \
 						     sign(c_star)*minmod_star*(F_R_star.energy-F_L_star.energy) + \
 						     sign(c_R)*minmod_r*(F_R.energy-F_R_star.energy));
 
-       } else  if(limiter == std::string("superbee")){
-	 (*itflux).rho = 0.5*(F_L.rho + F_R.rho) - 0.5* (sign(c_L)*superbee_l*(F_L_star.rho-F_L.rho) + \
-						     sign(c_star)*superbee_star*(F_R_star.rho-F_L_star.rho) + \
-						     sign(c_R)*superbee_r*(F_R.rho-F_R_star.rho));
-
-	 (*itflux).momentum = 0.5*(F_L.momentum + F_R.momentum) - 0.5* (sign(c_L)*superbee_l*(F_L_star.momentum-F_L.momentum) + \
-						     sign(c_star)*superbee_star*(F_R_star.momentum-F_L_star.momentum) + \
-						     sign(c_R)*superbee_r*(F_R.momentum-F_R_star.momentum));
-						     
-	 (*itflux).energy = 0.5*(F_L.energy + F_R.energy) - 0.5* (sign(c_L)*superbee_l*(F_L_star.energy-F_L.energy) + \
-						     sign(c_star)*superbee_star*(F_R_star.energy-F_L_star.energy) + \
-						     sign(c_R)*superbee_r*(F_R.energy-F_R_star.energy));
 
        }else{
-	     std::cout << "no limiter speficied. Fail to compute WAF fluxes"<< "\n";
-	     (*itflux).rho = 0.0;
-	     (*itflux).momentum = 0.0;
-	     (*itflux).energy = 0.0;
+	 std::cout <<"Something went wrong in the limiter calcualtion" << "\n";       
        }
-      */
-      //For debugging use empty flux
-      
+
+       std::cout << "The flux calculated is : " << "\n";
+       flux(f_idx).print();
+
+       /*
        flux(i).rho = 0.0;
        flux(i).moment_u = 0.0;
        flux(i).moment_v = 0.0;
        flux(i).energy = 0.0;
-     // 
+       */
+       // 
       //---------------------//      
 
   }
-     
+  //Logic in case of y-sweep;
+
+  if (sweep == std::string("x-sweep")){
+
+  }else if(sweep == std::string("y-sweep")){
+    for(int i = 0; i < ncells+1; i++){
+      flux(i).moment_u = flux(i).moment_v;
+      flux(i).moment_v = flux(i).moment_u;
+    }
+  }else{
+    std::cout <<"Sweep not specified. Fail to compute 1D WAF" << "\n";
+  }
+
+  f_idx++;
   return flux;
       
       

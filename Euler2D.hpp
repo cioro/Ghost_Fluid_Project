@@ -6,6 +6,7 @@ namespace {
 static const double GAMMA = 0.15;
 }*/
 
+enum VARIABLE {RHO, V, U, PRESSURE, MOMENT_U,MOMENT_V,ENERGY};
 class Euler{
 
 public:
@@ -19,6 +20,7 @@ public:
     double P;
     W_state();
     W_state(double rho, double u,double v, double P);
+    double get_var(VARIABLE v);
     void print()const; 
  };
   
@@ -29,6 +31,7 @@ public:
     double energy;
     U_state();
     U_state(double rho, double moment_u,double moment_v, double energy);
+    double get_var(VARIABLE v);
     void print()const;  
 };
 
@@ -46,8 +49,8 @@ public:
 
   double int_energy(const W_state& w);
   
-  U_state flux(U_state& u);
-  U_state flux_y(U_state& u);
+  U_state flux(const U_state& u);
+  U_state flux_y(const U_state& u);
 
   U_state CfromP(const W_state& w);
   W_state PfromC(const U_state& u);

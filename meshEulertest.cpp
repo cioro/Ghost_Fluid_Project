@@ -248,8 +248,16 @@ int main(int argc, char* argv[]){
   blitz::Array<Euler::U_state,1> flux(m.ncells+1);
   std::string limiter = "minmod";
   std::string sweep = "x-sweep";
-  blitz::Array<Euler::U_state,1> input = m.Bdata(5,blitz::Range::all());
-  flux = WAF_1D(input,dt,m.dx,m.ncells,m.nGhost,limiter,sweep); 
+  //This selects all the columns of the 5th row
+  blitz::Array<Euler::U_state,1> input = m.Bdata(blitz::Range::all(),5);
+  
+/* 
+ for(int i = m.nGhost; i <m.ncells+m.nGhost; i++){
+    std::cout <<"This is element : " << i << "\n";
+    input(i).print();
+  }
+  */
+   flux = WAF_1D(input,dt,m.dx,m.ncells,m.nGhost,limiter,sweep); 
 
   
  

@@ -80,7 +80,7 @@ std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_stat
 
 
 
-int sign(double c);
+
 
  //Mesh update
 void Mesh_update(Mesh &m, std::vector<Euler::U_state> &flux,double dt);
@@ -92,5 +92,5 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
 
 double minmod(double r, double c);
 double superbee(double r, double c);
-
+int sign(double c);
 #endif
