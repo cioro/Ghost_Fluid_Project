@@ -46,7 +46,7 @@ double Euler::int_energy(const Euler::W_state& w){
 }
 
 //The Formula come from Toro(ed.2009) p.89
-Euler::U_state Euler::flux_x(Euler::U_state& U){
+Euler::U_state Euler::flux(Euler::U_state& U){
   double Pressure = ((gamma-1)*(U.energy-0.5*(U.moment_u*U.moment_u + U.moment_v*U.moment_v)/U.rho));
   double f1 = U.moment_u;
   double f2 = U.moment_u*U.moment_u/U.rho + Pressure;

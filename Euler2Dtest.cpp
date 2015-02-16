@@ -23,7 +23,7 @@ int main(){
   Euler::U_state F;
   Euler::U_state G;
 
-  F = e.flux_x(u2D);
+  F = e.flux(u2D);
   G = e.flux_y(u2D);
 
   std::cout << "These are the fluxes " << "\n";

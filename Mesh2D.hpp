@@ -63,26 +63,34 @@ public:
   double Calculate_dt();
   /*
   void reset(Euler::U_state (*f)(double x));
-  // //Mesh update
-  //  //  void Mesh_update(Mesh &m, std::vector<Euler::U_state> &flux,double dt);
+
   */
 };
 /*
 //HLLC method
 std::vector<Euler::U_state> HLLC(Mesh &m);
 
+//2D Flux and update function
+void flux_and_update(Mesh &m, double dt,std::string limiter, std::string sweep_order);
 
 //TVD WAF
 std::vector<Euler::U_state> WAF(Mesh &m,double dt,std::string limiter);
 std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_state U_state_R);
 //Limiter fcns
-double minmod(double r, double c);
-double superbee(double r, double c);
+
+
 
 int sign(double c);
 
  //Mesh update
 void Mesh_update(Mesh &m, std::vector<Euler::U_state> &flux,double dt);
 */
+
+blitz::Array<Euler::U_state,1> HLLC_U_state(Euler::U_state U_state_L, Euler::U_state U_state_R);
+
+blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data, double dt, double ds, double ncells, double nGhost,std::string limiter,std::string sweep);
+
+double minmod(double r, double c);
+double superbee(double r, double c);
 
 #endif

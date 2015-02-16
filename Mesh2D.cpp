@@ -248,6 +248,24 @@ double Mesh::Calculate_dt(){
   return dt;
 }
 /*
+//Flux  and update function for 2D Euler Solver. Using the WAF TVD Scheme. See Toro chp.16
+void flux_and_update(Mesh &m, double dt, std::string limiter, std::string sweep_order){
+
+//Logic to choose sweep order
+//x-sweep
+   //WAF matrix sweep loop. Loop over all the rows
+   //1D WAF x_dir fluxes
+//n+1/2 update
+//y-sweep
+     //WAF matrix sweep loop. Loop over all the columns
+     //1D WAF y_dir fluxes
+//n+1 update
+
+}
+
+
+
+
 //HLLC flux calculator (this is a free function not a member function of class Mesh)
 //Check Toro(ed.2009) p.331 for summary of HLLC method
 std::vector<Euler::U_state> HLLC(Mesh &m){
@@ -436,13 +454,33 @@ void Mesh_update(Mesh &m, std::vector<Euler::U_state> &flux, double dt){
   }
 
 }
-
-std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
+*/
+//Need to modify this 1D  WAF.Unsure whether to create WAF_x_dir and WAF_y_dir or just permute v and u and use one fcn. 
+//This function is not strictly applicable to the 1D case. It includes the existance of a tangential velocity v, which gives
+//rise to a sheer wave, thus a new wave is included in the WAF calculation (plus a new limiter -- see page 553 Toro ed.2009)
+blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data, double dt, double ds, double ncells,double nGhost,std::string limiter,std::string sweep){
  
   //Total vector of fluxes
-  std::vector<Euler::U_state> flux(m.ncells+1);
+  blitz::Array<Euler::U_state,1> flux(ncells+1);
   
-  double gamma = m.ptr_euler->gamma;
+  //Logic to switch u and v depending on the sweep
+  //Need to rever this inversion when the result is calculated at the end. 
+  //Otherwise, I'll be calculting only the x-sweep twice.
+  if (sweep == std::string("x-sweep")){
+
+  }else if(sweep == std::string("y-sweep")){
+    for(int i= nGhost; i < ncells+nGhost; i++){
+    input_data(i).moment_u = input_data(i).moment_v;
+    input_data(i).moment_v = input_data(i).moment_u;
+    }
+  }else{
+  std::cout <<"Sweep not specified. Fail to compute 1D WAF" << "\n";
+  }
+
+  //Given that the mesh is no longer an input argument to access Euler class function, an empty euler object is needed
+  // to access the different data members and function members
+  Euler e;
+  double gamma = e.gamma;
   //Variables used
 
   double P_star,P_L,P_R; //Presures
@@ -472,39 +510,48 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
   double star_coef_left; // The coeficient in eq. 10.73 from Toro(ed.2009); (S_k-u_k)/(S_k-u_star_k);
   double star_coef_right; // The coeficient in eq. 10.73 from Toro(ed.2009);
   
-  std::vector<Euler::U_state>::iterator itflux = flux.begin();
-
+  
   //Courant number for each wave speed
-  double c_L,c_star,c_R;
+  double c_L,c_star,c_R,c_sheer;
  
 
   //Ratio for each wave speed
-  double r_L,r_star,r_R;
+  double r_L,r_star,r_R,r_sheer;
   double dq_l,dq_l_right_interface, dq_l_left_interface;
   double dq_star, dq_star_right_interface, dq_star_left_interface;
   double dq_r, dq_r_right_interface, dq_r_left_interface;
+  double dq_sheer, dq_sheer_right_interface, dq_sheer_left_interface;
 
   //Limiter functions
-  double minmod_l,minmod_star,minmod_r;
-  double superbee_l,superbee_star,superbee_r;
+  double minmod_l,minmod_star,minmod_r,minmod_sheer;
+  double superbee_l,superbee_star,superbee_r,superbee_sheer;
 
-  std::vector<Euler::U_state> left_interface;
-  std::vector<Euler::U_state> right_interface;
-  
-  // m.data[m.nGhost].print();
-  // m.data[0].print();
-  std::cout <<"Inside WAF flux function " << "\n";
+  blitz::Array<Euler::U_state,1> left_interface;
+  blitz::Array<Euler::U_state,1> right_interface;
+  left_interface.resize(4);
+  right_interface.resize(4);
+
+  //Dummy variable used to calculate shear wave max speed
+  double shear_speed;
+
+
+  std::cout <<"Inside WAF_1D flux function " << "\n";
   //Loop over whole domain
-  for(int i = m.nGhost-1; i < m.ncells+m.nGhost; i++){
+  for(int i = nGhost-1; i < ncells + nGhost; i++){
     
+    std::cout << "Inside the main loop. Iteration: " << i << "\n";
     //Select U_state and initialise W_state
 
-    U_state_L = m.data[i];
-    U_state_R = m.data[i+1];
+    U_state_L = input_data(i);
+    U_state_R = input_data(i+1);
+    U_state_L.print();
+    U_state_R.print();
 
-    W_L = m.ptr_euler->PfromC(U_state_L);
-    W_R = m.ptr_euler->PfromC(U_state_R);
+    W_L = e.PfromC(U_state_L);
+    W_R = e.PfromC(U_state_R);
 
+    W_L.print();
+    W_R.print();
 
     //---------Pressure estimate-------------------------
 
@@ -517,8 +564,8 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
     rho_L = W_L.rho;
     rho_R = W_R.rho;
    
-    a_L =m.ptr_euler->a(W_L);
-    a_R = m.ptr_euler->a(W_R);
+    a_L = e.a(W_L);
+    a_R = e.a(W_R);
 
     // std::cout <<"Inside the HLLC function" << "\n";
         
@@ -565,7 +612,7 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
 
     //Calculate F_L     
       Euler::U_state F_L;
-      F_L = m.ptr_euler->flux(U_state_L);
+      F_L = e.flux(U_state_L);
        
 
      //Calculate F_L_star
@@ -574,16 +621,18 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
       
       //---Calculate U_state_L_star
       U_state_L_star.rho = star_coef_left;
-      U_state_L_star.momentum = star_coef_left*S_star;
+      U_state_L_star.moment_u = star_coef_left*S_star;
+      U_state_L_star.moment_v = star_coef_left*W_L.v;
       U_state_L_star.energy = star_coef_left*(U_state_L.energy/U_state_L.rho + (S_star - u_L)*(S_star + P_L/(rho_L*(S_L-u_L))));
 //      /* Consider overloading the + operator to write this in one line 
       F_L_star.rho = F_L.rho + S_L*(U_state_L_star.rho -U_state_L.rho);
-      F_L_star.momentum = F_L.momentum + S_L*(U_state_L_star.momentum -U_state_L.momentum);
+      F_L_star.moment_u = F_L.moment_u + S_L*(U_state_L_star.moment_u - U_state_L.moment_u);
+      F_L_star.moment_v = F_L.moment_v + S_L*(U_state_L_star.moment_v - U_state_L.moment_v);
       F_L_star.energy = F_L.energy + S_L*(U_state_L_star.energy -U_state_L.energy);
    
       //Calculate F_R
       Euler::U_state F_R;
-      F_R = m.ptr_euler->flux(U_state_R);
+      F_R = e.flux(U_state_R);
      					
 
       //Calculate F_R_star
@@ -592,23 +641,30 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
       
       //Calculate U_state_R_star
       U_state_R_star.rho = star_coef_right;
-      U_state_R_star.momentum = star_coef_right*S_star;
+      U_state_R_star.moment_u = star_coef_right*S_star;
+      U_state_R_star.moment_v = star_coef_right*W_R.v;
       U_state_R_star.energy = star_coef_right*(U_state_R.energy/U_state_R.rho + (S_star - u_R)*(S_star + P_R/(rho_R*(S_R-u_R))));
 
 
 //      /* Consider overloading the + operator to write this in one line 
       F_R_star.rho = F_R.rho + S_R*(U_state_R_star.rho -U_state_R.rho);
-      F_R_star.momentum = F_R.momentum + S_R*(U_state_R_star.momentum -U_state_R.momentum);
+      F_R_star.moment_u = F_R.moment_u + S_R*(U_state_R_star.moment_u -U_state_R.moment_u);
+      F_R_star.moment_v = F_R.moment_v + S_R*(U_state_R_star.moment_v -U_state_R.moment_v);
       F_R_star.energy = F_R.energy + S_R*(U_state_R_star.energy -U_state_R.energy);
 
       //---------------END of HLLC Fluxes, F_L, F_L_star, F_R, F_R_star------------------//
 
 
       //Compute the courant number
-      c_L = dt*S_L/m.dx;
-      c_star = dt*S_star/m.dx;
-      c_R = dt*S_R/m.dx;
-      
+      c_L = dt*S_L/ds;
+      c_star = dt*S_star/ds;
+      c_R = dt*S_R/ds;
+
+      //To calculate the Cfl number associated with the shear wave I need a shear wave speed.From p.553 from Toro
+      // I can deduce that the contact wave and the shear wave have the same wave speed. 
+
+      c_sheer = dt*S_R/ds ;
+
 
       //Compute the ratios
       //-----compute dq, dq_up, dq_down for each wave at the interface. Up for 
@@ -616,19 +672,29 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
       //dq for the interface we are trying to solve for i+1/2
       dq_l = U_state_L.rho-U_state_L_star.rho;
       dq_star = U_state_L_star.rho - U_state_R_star.rho;
+      dq_sheer = (e.PfromC(U_state_L_star)).v-(e.PfromC(U_state_R_star)).v;
       dq_r = U_state_R_star.rho - U_state_R.rho;
 
-      left_interface = HLLC_U_state(m.data[i-1], m.data[i]);
-      right_interface = HLLC_U_state(m.data[i+1],m.data[i+2]);
+      std::cout << "About to calculate the HLLC values at the right and left interface to our current interface" << "\n";
 
-      dq_l_left_interface = left_interface[0].rho-left_interface[1].rho;
-      dq_star_left_interface = left_interface[1].rho - left_interface[2].rho;
-      dq_r_left_interface = left_interface[2].rho - left_interface[3].rho;
+      left_interface = HLLC_U_state(input_data(i-1), input_data(i));
+      right_interface = HLLC_U_state(input_data(i+1),input_data(i+2));
       
-      dq_l_right_interface = right_interface[0].rho-right_interface[1].rho;
-      dq_star_right_interface = right_interface[1].rho - right_interface[2].rho;
-      dq_r_right_interface = right_interface[2].rho - right_interface[3].rho;
-     
+      std::cout << " calculate left and right interfaces " << "\n";
+
+      dq_l_left_interface = left_interface(0).rho-left_interface(1).rho;
+      dq_star_left_interface = left_interface(1).rho - left_interface(2).rho;
+      dq_r_left_interface = left_interface(2).rho - left_interface(3).rho;
+      dq_sheer_left_interface = (e.PfromC(left_interface(1))).v-(e.PfromC(left_interface(2))).v;
+
+
+      dq_l_right_interface = right_interface(0).rho-right_interface(1).rho;
+      dq_star_right_interface = right_interface(1).rho - right_interface(2).rho;
+      dq_r_right_interface = right_interface(2).rho - right_interface(3).rho;
+      dq_sheer_right_interface =  (e.PfromC(right_interface(1))).v-(e.PfromC(right_interface(2))).v;
+      
+      std::cout << "We finished calculating " << "\n";
+
       /*
       std::cout << "This is the " << i << " element" <<"\n";
 
@@ -661,7 +727,7 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
      // right_interface[3].print();
       
    //   std::cout << "\n";
-   //   
+   //   */
    
      
       
@@ -708,21 +774,53 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
 	    superbee_r = 0.0;
 	    r_R = 0.0;
 	  } 
+
+//----------Sheer jump and ratio ---------------------------
+	  if(dq_sheer > 0){
+
+	    if (c_sheer > 0){
+	      r_sheer = dq_sheer_left_interface/dq_sheer;
+	    }
+	    else{
+	      r_sheer = dq_sheer_right_interface/dq_sheer;
+	    }
+	  }
+	  else{
+	    minmod_sheer = 0.0;
+	    superbee_sheer = 0.0;
+	    r_sheer = 0.0;
+	  } 
    
+//----------------------------------------------------------
+
+
+
       //Compute limiter functions
       minmod_l = minmod(r_L,fabs(c_L));
       minmod_star = minmod(r_star, fabs(c_star));
       minmod_r = minmod(r_R,fabs(c_R));
+      minmod_sheer = minmod(r_sheer,fabs(c_sheer));
 
       superbee_l = superbee(r_L, fabs(c_L));
       superbee_star = superbee(r_star, fabs(c_star));
       superbee_r = superbee(r_R, fabs(c_R));
+      superbee_sheer = superbee(r_sheer,fabs(c_sheer));
 
-       std::cout << "The ratios are r_L, r_star, r_R " << r_L<<"\t" << r_star << "\t" << r_R <<"\n";
-       std::cout << "The superbee lim m_l m_star m_r  " << superbee_l <<"\t" <<superbee_star << "\t" << superbee_r <<"\n";  
-      //Compute intercell flux at i+1/2 (*itflux).rho, (*itflux).momentum, (*itflux).energy
-      //For 1D N= 3, total number of waves
+      std::cout << "The ratios are r_L, r_star, r_R,r_shear " << r_L<<"\t" << r_star << "\t" << r_R << "\t"<<r_sheer<<"\n";
+       //       std::cout << "The superbee lim m_l m_star m_r  " << superbee_l <<"\t" <<superbee_star << "\t" << superbee_r <<"\n";  
       
+       if(minmod_sheer > minmod_star){
+
+	 std::cout << "The shear wave is before the contact wave" << "\n"; 
+	   }else if(minmod_sheer < minmod_star){
+	 std::cout << "The shear wave is behind the contact wave." << "\n";
+	 std::cout << "The resulting middle state is rho*l and v_R"<< "\n";
+       }else{
+	 std::cout <<"Something went wrong in the limiter calcualtion" << "\n";
+       }
+//Compute intercell flux at i+1/2 (*itflux).rho, (*itflux).momentum, (*itflux).energy
+      //For 1D N= 3, total number of waves
+      /*
        if(limiter == std::string("minmod")){
 
 	 (*itflux).rho = 0.5*(F_L.rho + F_R.rho) - 0.5* (sign(c_L)*minmod_l*(F_L_star.rho-F_L.rho) + \
@@ -756,14 +854,16 @@ std::vector<Euler::U_state> WAF(Mesh &m, double dt, std::string limiter){
 	     (*itflux).momentum = 0.0;
 	     (*itflux).energy = 0.0;
        }
+      */
       //For debugging use empty flux
-      /*
-      (*itflux).rho = 0.0;
-      (*itflux).momentum = 0.0;
-      (*itflux).energy = 0.0;
+      
+       flux(i).rho = 0.0;
+       flux(i).moment_u = 0.0;
+       flux(i).moment_v = 0.0;
+       flux(i).energy = 0.0;
      // 
       //---------------------//      
-      itflux++;
+
   }
      
   return flux;
@@ -809,12 +909,16 @@ double superbee(double r, double c){
 
 }
 
-std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_state U_state_R){
 
-  std::vector<Euler::U_state> U_interface(4);//vector of size 4 with U_L,U_L_star,U_R_star,U_star;
+
+//Modified to account for the exatra speed v in 2D. 
+blitz::Array<Euler::U_state,1> HLLC_U_state(Euler::U_state U_state_L, Euler::U_state U_state_R){
+
+  blitz::Array<Euler::U_state,1> U_interface; //vector of size 4 with U_L,U_L_star,U_R_star,U_star;
   
-  U_interface[0]=U_state_L;
-  U_interface[3]=U_state_R;
+  U_interface.resize(4);
+  U_interface(0)=U_state_L;
+  U_interface(3)=U_state_R;
 
   Euler e;
   const double gamma = e.gamma;//This is a massive fudge!!!!! 
@@ -833,7 +937,7 @@ std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_stat
   Euler::W_state w_temp_left;
   Euler::W_state w_temp_right;
 
-  double q_R,q_L;
+  double q_R,q_L;//Part of HLLC Calculation
 
  
   Euler::W_state W_L;
@@ -917,9 +1021,10 @@ std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_stat
       
       //---Calculate U_state_L_star
       U_state_L_star.rho = star_coef_left;
-      U_state_L_star.momentum = star_coef_left*S_star;
+      U_state_L_star.moment_u = star_coef_left*S_star;
+      U_state_L_star.moment_v = star_coef_left*W_L.v;
       U_state_L_star.energy = star_coef_left*(U_state_L.energy/U_state_L.rho + (S_star - u_L)*(S_star + P_L/(rho_L*(S_L-u_L))));
-      U_interface[1]=U_state_L_star;
+      U_interface(1)=U_state_L_star;
 
       // /* Consider overloading the + operator to write this in one line 
 	// F_L_star.rho = F_L.rho + S_L*(U_state_L_star.rho -U_state_L.rho);
@@ -937,9 +1042,10 @@ std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_stat
       
       //Calculate U_state_R_star
       U_state_R_star.rho = star_coef_right;
-      U_state_R_star.momentum = star_coef_right*S_star;
+      U_state_R_star.moment_u = star_coef_right*S_star;
+      U_state_R_star.moment_v = star_coef_right*W_R.v;
       U_state_R_star.energy = star_coef_right*(U_state_R.energy/U_state_R.rho + (S_star - u_R)*(S_star + P_R/(rho_R*(S_R-u_R))));
-      U_interface[2]=U_state_R_star;
+      U_interface(2)=U_state_R_star;
 
 //      /* Consider overloading the + operator to write this in one line 
       // F_R_star.rho = F_R.rho + S_R*(U_state_R_star.rho -U_state_R.rho);
@@ -949,4 +1055,4 @@ std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_stat
       return U_interface;
 
 }
-*/
+

@@ -212,9 +212,9 @@ int main(int argc, char* argv[]){
   }else{
   ncells = 100;
   } */
- int nGhost = 1;
+ int nGhost = 2;
 
- Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, Sod_ydir, Trans_Left_Bound, Trans_Right_Bound, nGhost);
+ Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, Sod_xdir, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   //Mesh n(ncells, x_min, x_max, cfl, initial_test1, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   // double dt_m;
   // double dt_n;
@@ -245,6 +245,13 @@ int main(int argc, char* argv[]){
   dt = m.Calculate_dt();
   std::cout << "The time step is : " << dt << "\n";
 
+  blitz::Array<Euler::U_state,1> flux(m.ncells+1);
+  std::string limiter = "minmod";
+  std::string sweep = "x-sweep";
+  blitz::Array<Euler::U_state,1> input = m.Bdata(5,blitz::Range::all());
+  flux = WAF_1D(input,dt,m.dx,m.ncells,m.nGhost,limiter,sweep); 
+
+  
  
   /*
 
@@ -300,54 +307,25 @@ int main(int argc, char* argv[]){
   //Initialise flux vector
   std::vector<Euler::U_state> flux_HLLC(m.ncells+1);
   std::vector<Euler::U_state> flux_WAF(n.ncells+1);
-  //Main loop over domain for HLLC 
 
-  std::cout << "HLLC loop starts" << "\n";
-  for(double i = 0; i<T_max; i+=dt_m){
-
-    m.applyBC();
-    dt_m = m.Calculate_dt();
-    flux_HLLC = HLLC(m);
-    Mesh_update(m,flux_HLLC,dt_m);
-
-    //Debugging messages
-    std::cout <<"dt " << dt_m <<" The time is "<< i << "\n";   
-
-    for(int j = 29; j < 33; j++){
-      std::cout << flux_HLLC[j].rho << "\t" << flux_HLLC[j].momentum << "\t" << flux_HLLC[j].energy << "\n";
-       }
-    std::cout << "\n "; 
-
-    //std::string snapshot = "Snap";
-    // m.save_w_state(snapshot, Exact_solver); 
-    
-    m.time++;
-  }
-
-  m.save_w_state(filename_HLLC,Exact_solver);
-
-  //Loop over whole domain for WAF
-  std::cout << "The WAF loops start" << "\n";
-  for(double j = 0; j<T_max; j+=dt_n){  
+  //Time Loop.
+  std::cout << "The time loop starts" << "\n";
+  for(double j = 0; j<T_max; j+=dt){  
 
 
-    n.applyBC();
-    dt_n = n.Calculate_dt();
-    flux_WAF = WAF(n,dt_m,limiter);
-    Mesh_update(n,flux_WAF,dt_n);  
+    //m.applyBC();
+    //dt = m.Calculate_dt();
+    //m.time++;
+    //Calculate flux and update. X-sweep,Y-sweep
+    //m.applyBC();
+    //dt=m.Calculate_dt();
+    //m.time++;
+    //Calculate flux and update. Y-sweep, X-sweep
 
- //Debugging messages
-    std::cout <<" dt " << dt_n <<" The time is "<< j << "\n";   
+    //Register output to file to take snaps of time evolution of the solution. 
 
-    for(int j = 29; j < 33; j++){
-      std::cout << flux_WAF[j].rho << "\t" << flux_WAF[j].momentum << "\t" << flux_WAF[j].energy << "\n";
-       }
-    std::cout <<n.time << "\n";
-    std::cout << "\n "; 
-  
-    n.time++;
-  }
+ }
 
-  n.save_w_state(filename_WAF,Exact_solver);
+  m.save_w_state(filename_WAF,Exact_solver);
 */
 }

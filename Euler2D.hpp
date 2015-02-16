@@ -46,7 +46,7 @@ public:
 
   double int_energy(const W_state& w);
   
-  U_state flux_x(U_state& u);
+  U_state flux(U_state& u);
   U_state flux_y(U_state& u);
 
   U_state CfromP(const W_state& w);
