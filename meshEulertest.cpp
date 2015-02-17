@@ -109,33 +109,34 @@ Euler::U_state Sod_ydir(double x,double y){
     return u;
   }
 }
-/*
-Euler::U_state initial_test3(double x){
+
+Euler::U_state cylinder(double x,double y){
   
-  const double x_0 = 0.5;
-  
+  const double x_0 = 1.0;
+  const double y_0 = 1.0;
+  const double r   = 0.4;
+ 
   Euler e;
 
- if (x<=x_0){
+  if ( ((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) < r){
     
-    const Euler::W_state wL(1.0,0.0,1000.0);
+    const Euler::W_state wL(1.0,0.0,0.0,1.0);
     Euler::U_state uL = e.CfromP(wL);
     return uL;
-  }
-  if (x>x_0){
-    const Euler::W_state wR(1.0,0.0,0.01);
+  }else  if ( ((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) > r  ){
+    const Euler::W_state wR(0.125,0.0,0.0,0.01);
     Euler::U_state uR = e.CfromP(wR);
     return uR;
   }
   else{
-    std::cout<<"Something went wrong inside inital function in main.cpp"<<std::endl;
+    std::cout<<"Something went wrong inside initial cylindrical explosion fcn"<<std::endl;
     Euler::U_state u;
     return u;
   }
 
 }
 
-
+/*
 Euler::U_state initial_test4(double x){
   
   const double x_0 = 0.4;
@@ -202,10 +203,10 @@ int main(int argc, char* argv[]){
   //Parameters of the problem
  
   
-  double x_min = 0, x_max = 1.0; //domain length
-  double y_min = 0, y_max = 1.0;
+  double x_min = 0, x_max = 2.0; //domain length
+  double y_min = 0, y_max = 2.0;
   double cfl = 0.9;
-  int ncells = 50;
+  int ncells = 100;
   /*
   if(argc == 4){
     ncells = atof(argv[3]);
@@ -214,7 +215,7 @@ int main(int argc, char* argv[]){
   } */
  int nGhost = 2;
 
- Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, Sod_xdir, Trans_Left_Bound, Trans_Right_Bound, nGhost);
+ Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, cylinder, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   //Mesh n(ncells, x_min, x_max, cfl, initial_test1, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   // double dt_m;
   // double dt_n;
@@ -264,7 +265,7 @@ int main(int argc, char* argv[]){
     flux_and_update(m,dt,std::string("YX"));
     
   }
-  std::string file_output = "2D_output_test";
+  std::string file_output = "2D_cylinder_test";
   m.save_u_state(file_output);
 
  /*

@@ -252,7 +252,8 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
  
   //Total vector of fluxes
   blitz::Array<Euler::U_state,1> flux(ncells+1);
-  
+  blitz::Array<Euler::U_state,1> flux_temp(ncells+1);
+  blitz::Array<Euler::U_state,1> input_temp(ncells+2*nGhost);
   //Logic to switch u and v depending on the sweep
   //Need to rever this inversion when the result is calculated at the end. 
   //Otherwise, I'll be calculting only the x-sweep twice.
@@ -260,8 +261,11 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
 
   }else if(sweep == std::string("y-sweep")){
     for(int i= 0; i < ncells+2*nGhost; i++){
-    input_data(i).moment_u = input_data(i).moment_v;
-    input_data(i).moment_v = input_data(i).moment_u;
+      input_temp(i).moment_u = input_data(i).moment_u;
+      input_temp(i).moment_v = input_data(i).moment_v;
+
+      input_data(i).moment_u = input_temp(i).moment_v;
+      input_data(i).moment_v = input_temp(i).moment_u;
     }
   }else{
   std::cout <<"Sweep not specified. Fail to compute 1D WAF" << "\n";
@@ -716,8 +720,10 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
 
   }else if(sweep == std::string("y-sweep")){
     for(int i = 0; i < ncells+1; i++){
-      flux(i).moment_u = flux(i).moment_v;
-      flux(i).moment_v = flux(i).moment_u;
+      flux_temp(i).moment_v = flux(i).moment_v;
+      flux_temp(i).moment_u = flux(i).moment_u;
+      flux(i).moment_v = flux_temp(i).moment_u;
+      flux(i).moment_u = flux_temp(i).moment_v;
     }
   }else{
     std::cout <<"Sweep not specified. Fail to compute 1D WAF" << "\n";
