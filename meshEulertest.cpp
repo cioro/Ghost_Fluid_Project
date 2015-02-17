@@ -205,7 +205,7 @@ int main(int argc, char* argv[]){
   double x_min = 0, x_max = 1.0; //domain length
   double y_min = 0, y_max = 1.0;
   double cfl = 0.9;
-  int ncells = 100;
+  int ncells = 50;
   /*
   if(argc == 4){
     ncells = atof(argv[3]);
@@ -231,7 +231,12 @@ int main(int argc, char* argv[]){
   m.applyBC();
   std::cout << "Testing boundary conditions. Output points on each of the boudaries"<<"\n";
   std::cout << "Left boundary with transmissive conditions" << "\n";
-  std::cout << m.Bdata(0,5).rho << "\n";
+  /* 
+ for(int col = 0; col  < m.ncells+ 2*m.nGhost; col ++){
+
+    std::cout << m.Bdata(col,102).rho << "\n";
+  
+    }*/
   std::cout << "Right boundary with transmissive conditions" << "\n";
   std::cout << m.Bdata(nGhost,5).rho << "\n";
   std::cout << "Top boundary with transmissive conditions" << "\n";
@@ -239,34 +244,37 @@ int main(int argc, char* argv[]){
   std::cout << "Bottom boundary with transmissive conditions" << "\n";
   std::cout << m.Bdata(5,0).rho << "\n";
   //Need to test calculate_dt();
-
-  std::cout << "Testing calculate_dt()" << "\n";
+  
+  
   double dt;
   dt = m.Calculate_dt();
-  std::cout << "The time step is : " << dt << "\n";
+  
+  
 
-  blitz::Array<Euler::U_state,1> flux(m.ncells+1);
-  std::string limiter = "minmod";
-  std::string sweep = "x-sweep";
   //This selects all the columns of the 5th row
-  blitz::Array<Euler::U_state,1> input = m.Bdata(blitz::Range::all(),5); ; 
-  input.resize(m.ncells+2*m.nGhost);
-  flux = WAF_1D(input,dt,m.dx,m.ncells,m.nGhost,limiter,sweep); 
 
- for(int i = 0; i < m.ncells + 1; i++){
-    std::cout <<"This is flux : " << i << "\n";
-    //input(i).print();
-    flux(i).print();
+  double T_max = 0.25;
+
+  for(double t = 0; t<T_max; t+=dt){
+    dt = m.Calculate_dt();
+    m.applyBC();
+    flux_and_update(m,dt,std::string("XY"));
+    dt = m.Calculate_dt();
+    m.applyBC();
+    flux_and_update(m,dt,std::string("YX"));
+    
   }
+  std::string file_output = "2D_output_test";
+  m.save_u_state(file_output);
 
-/*
+ /*
 //--------------------Potential 2D WAF FUNCTION -------------------------------------
  double dt_dx = dt/m.dx;
  std::string x_sweep_output = "x_sweep_output";
  std::string y_sweep_output = "y_sweep_output";
  int f_idx = 0;
  for(int i = m.nGhost; i < m.ncells+m.nGhost; i++){
-   std::cout << "This is the first row calculation " << i <<"\n";
+   std::cout << "This is the row  " << i <<"\n";
    //Selects all the colums of the i th row.
     input = m.Bdata(blitz::Range::all(),i);
     //Calculate x-fluxes
@@ -277,26 +285,43 @@ int main(int argc, char* argv[]){
     m.Bdata(col,i).moment_u = m.Bdata(col,i).moment_u - dt_dx*(flux(f_idx+1).moment_u - flux(f_idx).moment_u);
     m.Bdata(col,i).moment_v = m.Bdata(col,i).moment_v - dt_dx*(flux(f_idx+1).moment_v - flux(f_idx).moment_v);
     m.Bdata(col,i).energy = m.Bdata(col,i).energy - dt_dx*(flux(f_idx+1).energy-flux(f_idx).energy);
+    
     f_idx++;
     }
     f_idx = 0;
+   
     m.save_u_state(x_sweep_output);
-    
-    sweep = std::string("y-sweep");
+
+ } 
+ 
+ m.applyBC();
+ 
+ f_idx=0;
+ sweep = std::string("y-sweep");
+  for(int i = m.nGhost; i < m.ncells+m.nGhost; i++){
+    std::cout << "This is the column  " << i <<"\n";
+    //Selects the ith column all of the rows.
     input = m.Bdata(i, blitz::Range::all());
-    flux = WAF_1D(input,dt,m.dx,m.ncells,m.nGhost,limiter,sweep); 
-    for(int row= m.nGhost; row < m.ncells + m.nGhost; row++){
-    m.Bdata(i,row).rho = m.Bdata(i,row).rho - dt_dx*(flux(f_idx+1).rho-flux(f_idx).rho);
-    m.Bdata(i,row).moment_u = m.Bdata(i,row).moment_u - dt_dx*(flux(f_idx+1).moment_u - flux(f_idx).moment_u);
-    m.Bdata(i,row).moment_v = m.Bdata(i,row).moment_v - dt_dx*(flux(f_idx+1).moment_v - flux(f_idx).moment_v);
-    m.Bdata(i,row).energy = m.Bdata(i,row).energy - dt_dx*(flux(f_idx+1).energy-flux(f_idx).energy);
-    f_idx++;
+    std::cout <<"The data of the solution at the end of the array is : " << "\n";
+    input(101).print();
+    input(102).print();
+    flux = WAF_1D(input,dt,m.dy,m.ncells,m.nGhost,limiter,sweep); 
+   
+    for(int row = m.nGhost; row < m.ncells + m.nGhost; row++){
+      m.Bdata(i,row).rho = m.Bdata(i,row).rho - dt_dx*(flux(f_idx+1).rho-flux(f_idx).rho);
+      m.Bdata(i,row).moment_u = m.Bdata(i,row).moment_u - dt_dx*(flux(f_idx+1).moment_u - flux(f_idx).moment_u);
+      m.Bdata(i,row).moment_v = m.Bdata(i,row).moment_v - dt_dx*(flux(f_idx+1).moment_v - flux(f_idx).moment_v);
+      m.Bdata(i,row).energy = m.Bdata(i,row).energy - dt_dx*(flux(f_idx+1).energy-flux(f_idx).energy);
+      f_idx++;
     }
     f_idx=0;
-     m.save_u_state(y_sweep_output);
+    m.save_u_state(y_sweep_output);
+    
  }  
+  */
+
  //---------------------------------------------------------------------------
- */
+
 /*
 
   std::string filename_HLLC;

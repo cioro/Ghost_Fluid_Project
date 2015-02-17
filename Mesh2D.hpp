@@ -86,6 +86,9 @@ std::vector<Euler::U_state> HLLC_U_state(Euler::U_state U_state_L, Euler::U_stat
 void Mesh_update(Mesh &m, std::vector<Euler::U_state> &flux,double dt);
 */
 
+void flux_and_update(Mesh &m,double dt,std::string sweep_order);
+
+
 blitz::Array<Euler::U_state,1> HLLC_U_state(Euler::U_state U_state_L, Euler::U_state U_state_R);
 
 blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data, double dt, double ds, double ncells, double nGhost,std::string limiter,std::string sweep);

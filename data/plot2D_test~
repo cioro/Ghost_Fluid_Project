@@ -5,4 +5,10 @@ set output "2Dmap_test.eps"
 set view map
 set pm3d
 unset surface
-splot "initial_test_mesh0" using 1:2:3
+splot "2D_output_test0" using 1:2:3
+set output "Sod_y_dir_moment_u.eps"
+splot "2D_output_test0" using 1:2:4
+set output "Sod_y_dir_moment_v.eps"
+splot "2D_output_test0" using 1:2:5
+set output "Sod_y_dir_energy.eps"
+splot "2D_output_test0" using 1:2:6

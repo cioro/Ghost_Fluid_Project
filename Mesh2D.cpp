@@ -177,9 +177,9 @@ void Mesh::applyBC(){
     //Loop over each column
     for(int x_dir = nGhost; x_dir<ncells+nGhost; x_dir++){
 
-      Euler::W_state w_Left_End = ptr_euler -> PfromC(Bdata(x_dir,y_dir+nGhost));
+      Euler::W_state w_Left_End = ptr_euler -> PfromC(Bdata(x_dir, (nGhost+ncells-1)-y_dir));
       Euler::W_state w_BC_Left = boundary1(w_Left_End);
-      Bdata(x_dir,nGhost-1-y_dir) = ptr_euler-> CfromP(w_BC_Left);
+      Bdata(x_dir,y_dir+(nGhost+ncells)) = ptr_euler-> CfromP(w_BC_Left);
       
       //data[nGhost-1-j]= ptr_euler -> CfromP(w_BC_Left);
 
@@ -191,14 +191,11 @@ void Mesh::applyBC(){
   for(int y_dir = 0; y_dir < nGhost; y_dir++ ){
     //Loop over each column
     for (int x_dir = nGhost; x_dir < ncells+nGhost; x_dir++){
-	Euler::W_state w_Right_End = ptr_euler -> PfromC(Bdata(x_dir,(ncells+nGhost)-y_dir));
+	Euler::W_state w_Right_End = ptr_euler -> PfromC(Bdata(x_dir, nGhost + y_dir));
 	Euler::W_state w_BC_Right = boundary2(w_Right_End);
-	Bdata(x_dir,(nGhost + ncells)+y_dir)= ptr_euler -> CfromP(w_BC_Right);
+	Bdata(x_dir,nGhost-1-y_dir)= ptr_euler -> CfromP(w_BC_Right);
       }
   }
-
-
-
 
 }
 
@@ -247,214 +244,7 @@ double Mesh::Calculate_dt(){
   dt=(cfl*dx)*min_coef;
   return dt;
 }
-/*
-//Flux  and update function for 2D Euler Solver. Using the WAF TVD Scheme. See Toro chp.16
-void flux_and_update(Mesh &m, double dt, std::string limiter, std::string sweep_order){
 
-//Logic to choose sweep order
-//x-sweep
-   //WAF matrix sweep loop. Loop over all the rows
-   //1D WAF x_dir fluxes
-//n+1/2 update
-//y-sweep
-     //WAF matrix sweep loop. Loop over all the columns
-     //1D WAF y_dir fluxes
-//n+1 update
-
-}
-
-
-
-
-//HLLC flux calculator (this is a free function not a member function of class Mesh)
-//Check Toro(ed.2009) p.331 for summary of HLLC method
-std::vector<Euler::U_state> HLLC(Mesh &m){
- 
-  //Total vector of fluxes
-  std::vector<Euler::U_state> flux(m.ncells+1);
-  
-  double gamma = m.ptr_euler->gamma;
-  //Variables used
-
-  double P_star,P_L,P_R; //Presures
-  double rho_star,rho_L,rho_R;//densities
-  double u_L,u_R;//particle/gas speed in cell
-
-  double a_L, a_R;// sound speed in cell
-  double S_L, S_R,S_star;// wave speed in cell left wave, right wave, contact wave
-
-  Euler::U_state U_star_L, U_star_R; // Star states of conserved var
-  
-  double P_pvrs;
-  double rho_bar, a_bar;//average density and average sound speed of left and right cells
-
-  Euler::W_state w_temp_left;
-  Euler::W_state w_temp_right;
-
-  double q_R,q_L;
-
-  Euler::U_state U_state_L;
-  Euler::U_state U_state_R;
-  Euler::W_state W_L;
-  Euler::W_state W_R;
-  Euler::U_state U_state_L_star;
-  Euler::U_state U_state_R_star;
-
-  double star_coef_left; // The coeficient in eq. 10.73 from Toro(ed.2009); (S_k-u_k)/(S_k-u_star_k);
-  double star_coef_right; // The coeficient in eq. 10.73 from Toro(ed.2009);
-  
-  std::vector<Euler::U_state>::iterator itflux = flux.begin();
-  
-  // m.data[m.nGhost].print();
-  // m.data[0].print();
-
-  //Loop over whole domain
-  for(int i = m.nGhost-1; i < m.ncells+m.nGhost; i++){
-    
-    //Select U_state and initialise W_state
-
-    U_state_L = m.data[i];
-    U_state_R = m.data[i+1];
-
-    W_L = m.ptr_euler->PfromC(U_state_L);
-    W_R = m.ptr_euler->PfromC(U_state_R);
-
-
-    //---------Pressure estimate-------------------------
-
-    P_L = W_L.P;
-    P_R = W_R.P;
-
-    u_L = W_L.u;
-    u_R = W_R.u;
-
-    rho_L = W_L.rho;
-    rho_R = W_R.rho;
-   
-    a_L =m.ptr_euler->a(W_L);
-    a_R = m.ptr_euler->a(W_R);
-
-    // std::cout <<"Inside the HLLC function" << "\n";
-        
-    rho_bar = 0.5*(rho_L + rho_R);
-    a_bar = 0.5*(a_L + a_R);
-
-    P_pvrs = 0.5*(P_L + P_R)-0.5*(u_R-u_L)*rho_bar*a_bar;
-
-    P_star = std::max(0.0,P_pvrs);
-      
-    //---------------------------------------------------
-   
-    //----------Wave speed estimate----------------------
-    
-    //Calculate q_R
-
-    if(P_star <= P_R){
-      q_R = 1.0;
-    }
-    else{
-      q_R = sqrt(1 + ((gamma+1)/(2*gamma))*((P_star/P_R)-1));
-    }
-        
-    //Calculate q_L
-    if(P_star <= P_L){
-      q_L = 1.0;
-    }
-    else{
-      q_L = sqrt(1 + ((gamma+1)/(2*gamma))*((P_star/P_L)-1));
-    }
- 
-    //Calculate S_R and S_L
-    S_L = u_L -a_L*q_L;
-    S_R = u_R + a_R*q_R;
-    
-    double numerator = P_R - P_L + rho_L*u_L*(S_L-u_L) - rho_R*u_R*(S_R-u_R); 
-    double denominator = rho_L*(S_L-u_L)-rho_R*(S_R-u_R);
-
-    S_star = numerator/denominator; 
-
-    //---------------------------------------------------
-
-    //HLLC flux
-
-    if ( 0.0 <= S_L){
-      
-      Euler::U_state F_L;
-      F_L = m.ptr_euler->flux(U_state_L);
-      *itflux = F_L;
-    }
-
-    if( (S_L <= 0.0) && (S_star >= 0.0)){
-
-      star_coef_left = rho_L*((S_L-u_L)/(S_L-S_star));
-      
-      //Calculate U_state_L_star
-      U_state_L_star.rho = star_coef_left;
-      U_state_L_star.momentum = star_coef_left*S_star;
-      U_state_L_star.energy = star_coef_left*(U_state_L.energy/U_state_L.rho + (S_star - u_L)*(S_star + P_L/(rho_L*(S_L-u_L))));
-      
-      Euler::U_state F_L;
-      F_L = m.ptr_euler->flux(U_state_L);
-     //  Consider overloading the + operator to write this in one line 
-      (*itflux).rho = F_L.rho + S_L*(U_state_L_star.rho -U_state_L.rho);
-      (*itflux).momentum = F_L.momentum + S_L*(U_state_L_star.momentum -U_state_L.momentum);
-      (*itflux).energy = F_L.energy + S_L*(U_state_L_star.energy -U_state_L.energy);
-   
-							
-    }
-
-    if( (S_star <= 0.0) && (S_R >= 0.0)){
-
-
-      star_coef_right = rho_R*((S_R-u_R)/(S_R-S_star));
-      
-      //Calculate U_state_R_star
-      U_state_R_star.rho = star_coef_right;
-      U_state_R_star.momentum = star_coef_right*S_star;
-      U_state_R_star.energy = star_coef_right*(U_state_R.energy/U_state_R.rho + (S_star - u_R)*(S_star + P_R/(rho_R*(S_R-u_R))));
-
-      Euler::U_state F_R;    
-      F_R = m.ptr_euler->flux(U_state_R);
-//      Consider overloading the + operator to write this in one line 
-      (*itflux).rho = F_R.rho + S_R*(U_state_R_star.rho -U_state_R.rho);
-      (*itflux).momentum = F_R.momentum + S_R*(U_state_R_star.momentum -U_state_R.momentum);
-      (*itflux).energy = F_R.energy + S_R*(U_state_R_star.energy -U_state_R.energy);
-
-
-    }
-
-    if( 0.0 >= S_R){
-      
-      Euler::U_state F_R;
-      F_R = m.ptr_euler->flux(U_state_R);
-      *itflux = F_R;
-      
-    }
-					       
-
-    itflux++;
-  }
-
-  return flux;
-}
-
-void Mesh_update(Mesh &m, std::vector<Euler::U_state> &flux, double dt){
- 
-  double dt_dx = dt/m.dx;
-  std::vector<Euler::U_state>::iterator itflux = flux.begin();
-  
-  for(int i = m.nGhost; i <m.ncells+ m.nGhost;i++){
-
-    m.data[i].rho = m.data[i].rho - dt_dx*((*(itflux+1)).rho-((*itflux).rho));
-    m.data[i].momentum = m.data[i].momentum - dt_dx*((*(itflux+1)).momentum - (*itflux).momentum);
-    m.data[i].energy = m.data[i].energy - dt_dx*((*(itflux+1)).energy-((*itflux).energy));
-    
-    itflux++;
-
-  }
-
-}
-*/
 //Need to modify this 1D  WAF.Unsure whether to create WAF_x_dir and WAF_y_dir or just permute v and u and use one fcn. 
 //This function is not strictly applicable to the 1D case. It includes the existance of a tangential velocity v, which gives
 //rise to a sheer wave, thus a new wave is included in the WAF calculation (plus a new limiter -- see page 553 Toro ed.2009)
@@ -469,7 +259,7 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
   if (sweep == std::string("x-sweep")){
 
   }else if(sweep == std::string("y-sweep")){
-    for(int i= nGhost; i < ncells+nGhost; i++){
+    for(int i= 0; i < ncells+2*nGhost; i++){
     input_data(i).moment_u = input_data(i).moment_v;
     input_data(i).moment_v = input_data(i).moment_u;
     }
@@ -543,7 +333,7 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
   //Loop over whole domain
   for(int i = nGhost-1; i < ncells + nGhost; i++){
 
-    std::cout << "Inside the main loop. Iteration: " << i << "\n";
+    std::cout << "Inside the WAF_1D loop. Iteration: " << i << "\n";
     //Select U_state and initialise W_state
 
     U_state_L = input_data(i);
@@ -921,7 +711,7 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
   f_idx++;
   }
   //Logic in case of y-sweep;
-  /*
+  
   if (sweep == std::string("x-sweep")){
 
   }else if(sweep == std::string("y-sweep")){
@@ -932,12 +722,7 @@ blitz::Array<Euler::U_state,1> WAF_1D(blitz::Array<Euler::U_state,1> input_data,
   }else{
     std::cout <<"Sweep not specified. Fail to compute 1D WAF" << "\n";
   }
-  */
-
-  for(int i = 0; i < ncells+1; i++){
-    std::cout<< "About to return flux. And the value of the 1D ith flux is : " << "\n";
-    flux(i).print();
-  }
+  
   return flux;
       
       
@@ -1126,5 +911,119 @@ blitz::Array<Euler::U_state,1> HLLC_U_state(Euler::U_state U_state_L, Euler::U_s
 
       return U_interface;
 
+}
+
+void flux_and_update(Mesh &m,double dt,std::string sweep_order){
+
+  double dt_dx = dt/m.dx;
+  double dt_dy = dt/m.dy;
+  std::string x_sweep_output = "x_sweep_output";
+  std::string y_sweep_output = "y_sweep_output";
+  blitz::Array<Euler::U_state,1> input;
+  input.resize(m.ncells+2*m.nGhost);
+  blitz::Array<Euler::U_state,1> flux(m.ncells+1);
+  std::string limiter = "minmod";
+  std::string sweep;
+ 
+  int f_idx = 0; 
+  //X-Sweep,Y-sweep
+
+  if(sweep_order == std::string("XY")){
+
+    
+    //X-SWEEP
+    sweep = std::string("x_sweep");
+    for(int i = m.nGhost; i < m.ncells+m.nGhost; i++){
+      std::cout << "This is the row  " << i <<"\n";
+      //Selects all the colums of the i th row.
+      input = m.Bdata(blitz::Range::all(),i);
+      //Calculate x-fluxes
+      flux = WAF_1D(input,dt,m.dx,m.ncells,m.nGhost,limiter,sweep); 
+      //Update solution U_dt+1/2
+      for(int col= m.nGhost; col < m.ncells + m.nGhost; col++){
+	m.Bdata(col,i).rho = m.Bdata(col,i).rho - dt_dx*(flux(f_idx+1).rho-flux(f_idx).rho);
+	m.Bdata(col,i).moment_u = m.Bdata(col,i).moment_u - dt_dx*(flux(f_idx+1).moment_u - flux(f_idx).moment_u);
+	m.Bdata(col,i).moment_v = m.Bdata(col,i).moment_v - dt_dx*(flux(f_idx+1).moment_v - flux(f_idx).moment_v);
+	m.Bdata(col,i).energy = m.Bdata(col,i).energy - dt_dx*(flux(f_idx+1).energy-flux(f_idx).energy);
+    
+	f_idx++;
+      }
+      f_idx = 0;
+   
+      m.save_u_state(x_sweep_output);
+
+    }  
+    m.applyBC();
+    f_idx=0;
+    //Y_SWEEP
+    sweep = std::string("y-sweep");
+    for(int i = m.nGhost; i < m.ncells+m.nGhost; i++){
+      std::cout << "This is the column  " << i <<"\n";
+      //Selects the ith column all of the rows.
+      input = m.Bdata(i, blitz::Range::all());
+      flux = WAF_1D(input,dt,m.dy,m.ncells,m.nGhost,limiter,sweep); 
+      for(int row = m.nGhost; row < m.ncells + m.nGhost; row++){
+	m.Bdata(i,row).rho = m.Bdata(i,row).rho - dt_dy*(flux(f_idx+1).rho-flux(f_idx).rho);
+	m.Bdata(i,row).moment_u = m.Bdata(i,row).moment_u - dt_dy*(flux(f_idx+1).moment_u - flux(f_idx).moment_u);
+	m.Bdata(i,row).moment_v = m.Bdata(i,row).moment_v - dt_dy*(flux(f_idx+1).moment_v - flux(f_idx).moment_v);
+	m.Bdata(i,row).energy = m.Bdata(i,row).energy - dt_dy*(flux(f_idx+1).energy-flux(f_idx).energy);
+	f_idx++;
+      }
+      f_idx=0;
+      m.save_u_state(y_sweep_output);
+    
+    }  
+  }else if(sweep_order == std::string("YX")){
+      
+       f_idx=0;
+       //Y_SWEEP
+       sweep = std::string("y-sweep");
+       for(int i = m.nGhost; i < m.ncells+m.nGhost; i++){
+	 std::cout << "This is the column  " << i <<"\n";
+	 //Selects the ith column all of the rows.
+	 input = m.Bdata(i, blitz::Range::all());
+	 flux = WAF_1D(input,dt,m.dy,m.ncells,m.nGhost,limiter,sweep); 
+	 for(int row = m.nGhost; row < m.ncells + m.nGhost; row++){
+	   m.Bdata(i,row).rho = m.Bdata(i,row).rho - dt_dy*(flux(f_idx+1).rho-flux(f_idx).rho);
+	   m.Bdata(i,row).moment_u = m.Bdata(i,row).moment_u - dt_dy*(flux(f_idx+1).moment_u - flux(f_idx).moment_u);
+	   m.Bdata(i,row).moment_v = m.Bdata(i,row).moment_v - dt_dy*(flux(f_idx+1).moment_v - flux(f_idx).moment_v);
+	   m.Bdata(i,row).energy = m.Bdata(i,row).energy - dt_dy*(flux(f_idx+1).energy-flux(f_idx).energy);
+	   f_idx++;
+	 }
+	 f_idx=0;
+	 m.save_u_state(y_sweep_output);
+    
+       }  
+
+       m.applyBC();
+       f_idx=0;
+       //X_SWEEP
+       sweep = std::string("x-sweep");
+       for(int i = m.nGhost; i < m.ncells+m.nGhost; i++){
+	 std::cout << "This is the row  " << i <<"\n";
+	 //Selects all the colums of the i th row.
+	 input = m.Bdata(blitz::Range::all(),i);
+	 //Calculate x-fluxes
+	 flux = WAF_1D(input,dt,m.dx,m.ncells,m.nGhost,limiter,sweep); 
+	 //Update solution U_dt+1/2
+	 for(int col= m.nGhost; col < m.ncells + m.nGhost; col++){
+	   m.Bdata(col,i).rho = m.Bdata(col,i).rho - dt_dx*(flux(f_idx+1).rho-flux(f_idx).rho);
+	   m.Bdata(col,i).moment_u = m.Bdata(col,i).moment_u - dt_dx*(flux(f_idx+1).moment_u - flux(f_idx).moment_u);
+	   m.Bdata(col,i).moment_v = m.Bdata(col,i).moment_v - dt_dx*(flux(f_idx+1).moment_v - flux(f_idx).moment_v);
+	   m.Bdata(col,i).energy = m.Bdata(col,i).energy - dt_dx*(flux(f_idx+1).energy-flux(f_idx).energy);
+    
+	   f_idx++;
+	 }
+	 f_idx = 0;
+   
+	 m.save_u_state(x_sweep_output);
+
+       }
+
+
+      }else{
+       std::cout << "Inside flux_and_update function. Wrong sweep input" << "\n";
+       
+     }
 }
 
