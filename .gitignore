@@ -27,5 +27,8 @@
 *.out
 *.app
 
-#Log output files
+#Log output files from program
 *.log 
+
+#Data directory
+./data/*
