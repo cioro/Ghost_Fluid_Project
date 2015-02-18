@@ -54,6 +54,8 @@ public:
   void print()const;
   void save_u_state(std::string name)const;
   void save_w_state(std::string name)const;
+  void slice_x_axis(std::string name)const;
+  void slice_y_axis(std::string name)const;
  
  //Apply BCs
   

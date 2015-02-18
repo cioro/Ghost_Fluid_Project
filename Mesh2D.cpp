@@ -70,27 +70,16 @@ void Mesh::reset(Euler::U_state (*f)(double x)){
 //Prints vector of conserved variables to screen
 void Mesh::print()const
 {
-  
-  //std::vector<Euler::U_state>::const_iterator itdata = data.begin()+nGhost;
-  //std::vector<Euler::U_state>::const_iterator itdata2= data2.begin()+nGhost;
-  // std::vector<double>::const_iterator itaxis= axis.begin()+nGhost;
-  
-
   for (int i = nGhost; i<(ncells+nGhost); i++){
     for (int j = nGhost; j<(ncells+nGhost); j++){
       std::cout << xaxis(i) << "\t" << yaxis(j) << "\t" << Bdata(i,j).rho <<"\t"<< Bdata(i,j).moment_u <<"\t" << Bdata(i,j).moment_v <<"\t" << Bdata(i,j).energy << "\n";
     }
     std::cout <<"\n";
   }
-     //std::cout << *itaxis << "\t";
-     //(*itdata).print();
-     //itaxis++;
-     //itdata++;
-   
-  
+    
 }
 
-//Print to a file the 1D vector of conserved variables and the exact solution
+//Print to a file the 2D matrix of conserved variables and the exact solution
 void Mesh::save_u_state(std::string filename)const
 {
   std::string dir = "data/";
@@ -113,7 +102,7 @@ void Mesh::save_u_state(std::string filename)const
   
 }
 
-//Prints to a file the 1D vector of primitive variables and the exact solution 
+//Prints to a file the 2D matrix of primitive variables  
 void Mesh::save_w_state(std::string filename)const
 {
   std::string dir = "data/";
@@ -141,6 +130,65 @@ for(int i=nGhost; i<ncells+nGhost; i++)
       fclose(outfile);
   
 }
+
+//1D slice of u_states parallel to the x-axis.
+void Mesh::slice_x_axis(std::string filename)const
+{
+  std::string dir = "data/";
+  std::stringstream ss;
+  ss << dir << filename << time;
+  std::string tmppath = ss.str();
+  
+  std::cout << "CREATING FILE \n";
+  FILE * outfile = fopen(tmppath.c_str(),"w");
+  //std::vector<Euler::U_state>::const_iterator itdata= data.begin()+nGhost;
+  //std::vector<double>::const_iterator itaxis= axis.begin()+nGhost;
+  
+  Euler::W_state w_print;  
+
+  int y_0 = int(ncells/2.0);
+    
+      for(int x_axis=nGhost; x_axis < ncells+nGhost; x_axis++){
+
+	w_print = ptr_euler->PfromC(Bdata(x_axis,y_0));
+
+	fprintf(outfile, "%.4f \t %.4f \t %.4f \t %.4f \t %.4f \t %.4f \n", xaxis(x_axis), w_print.rho,w_print.u,w_print.v,w_print.P, ptr_euler->int_energy(w_print));
+      
+      
+  }
+  fclose(outfile);
+  
+}
+
+//1D slice of u_states parallel to the y-axis.
+void Mesh::slice_y_axis(std::string filename)const
+{
+  std::string dir = "data/";
+  std::stringstream ss;
+  ss << dir << filename << time;
+  std::string tmppath = ss.str();
+  
+  std::cout << "CREATING FILE \n";
+  FILE * outfile = fopen(tmppath.c_str(),"w");
+  //std::vector<Euler::U_state>::const_iterator itdata= data.begin()+nGhost;
+  //std::vector<double>::const_iterator itaxis= axis.begin()+nGhost;
+  
+  Euler::W_state w_print;  
+  int x_0 = int(ncells/2);
+    
+      for(int y_axis=nGhost; y_axis < ncells+nGhost; y_axis++){
+
+	w_print = ptr_euler->PfromC(Bdata(x_0,y_axis));
+
+	fprintf(outfile, "%.4f \t %.4f \t %.4f \t %.4f \t %.4f \t %.4f \n", yaxis(y_axis), w_print.rho, w_print.u,w_print.v, w_print.P, ptr_euler->int_energy(w_print));
+      
+      
+  }
+  fclose(outfile);
+  
+}
+
+
 
 //Implements the boundary conditions. The actual boundary condition function should be in the main file
 void Mesh::applyBC(){

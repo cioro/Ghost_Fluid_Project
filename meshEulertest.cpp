@@ -7,7 +7,7 @@
 #include<string>
 #include<blitz/array.h>
 
-/*
+
 //Reflective boundary function
 Euler::W_state Refl_Left_Bound(Euler::W_state w){
  
@@ -16,6 +16,7 @@ Euler::W_state Refl_Left_Bound(Euler::W_state w){
   
   w_result.rho =   w.rho;
   w_result.u   = - w.u;
+  w_result.v   = - w.v;
   w_result.P   =   w.P;
 
   return w_result;
@@ -27,10 +28,11 @@ Euler::W_state Refl_Right_Bound(Euler::W_state w ){
 
   w_result.rho =   w.rho;
   w_result.u   = - w.u;
+  w_result.v   = - w.v;
   w_result.P   =   w.P;
 
   return w_result;
-  }*/
+  }
 
 //Transmissive boundary function
 Euler::W_state Trans_Left_Bound(Euler::W_state w){
@@ -62,7 +64,7 @@ Euler::W_state Trans_Right_Bound(Euler::W_state w){
 
 Euler::U_state Sod_xdir(double x, double y){
 
-  const double x_0 = 0.3;
+  const double x_0 = 0.5;
   //Should do this assert(x_0 < x_max && x_0 > x_min); to avoid errors
   //but I would have to add to more args to the fcn.
 
@@ -118,7 +120,7 @@ Euler::U_state cylinder(double x,double y){
  
   Euler e;
 
-  if ( ((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) < r){
+  if ( ((x-x_0)*(x-x_0)+(y-y_0)*(y-y_0)) <= r){
     
     const Euler::W_state wL(1.0,0.0,0.0,1.0);
     Euler::U_state uL = e.CfromP(wL);
@@ -136,21 +138,20 @@ Euler::U_state cylinder(double x,double y){
 
 }
 
-/*
-Euler::U_state initial_test4(double x){
+
+Euler::U_state diagonal(double x,double y){
   
   const double x_0 = 0.4;
   
   Euler e;
 
- if (x<=x_0){
+  if (y < (1-x)){
     
-    const Euler::W_state wL(5.99924,19.5975,460.894);
+    const Euler::W_state wL(1.0,0.0,0.0,1.0);
     Euler::U_state uL = e.CfromP(wL);
     return uL;
-  }
-  if (x>x_0){
-    const Euler::W_state wR(5.99242,-6.19633,46.0950);
+  }else if (y >= (1-x)){
+    const Euler::W_state wR(0.125,0.0,0.0,0.1);
     Euler::U_state uR = e.CfromP(wR);
     return uR;
   }
@@ -163,31 +164,117 @@ Euler::U_state initial_test4(double x){
 }
 
 
-Euler::U_state initial_test5(double x){
+Euler::U_state collision_perpendicular_to_x_axis(double x,double y){
   
-  const double x_0 = 0.8;
+  const double x_0 = 0.3;
+  const double x_1 = 0.7;
   
   Euler e;
 
  if (x<=x_0){
     
-    const Euler::W_state wL(1.0,-19.59745,1000.0);
-    Euler::U_state uL = e.CfromP(wL);
-    return uL;
-  }
-  if (x>x_0){
-    const Euler::W_state wR(1.0,-19.59745,0.01);
-    Euler::U_state uR = e.CfromP(wR);
-    return uR;
-  }
-  else{
-    std::cout<<"Something went wrong inside inital function in main.cpp"<<std::endl;
-    Euler::U_state u;
-    return u;
-  }
+   const Euler::W_state wL(1.3764,0.394,0.0,1.5698);
+   Euler::U_state uL = e.CfromP(wL);
+   return uL;
+ }else if(x_0 < x && x < x_1){
+   const Euler::W_state wM(1.0,0.0,0.0,1.0);
+   Euler::U_state uM = e.CfromP(wR);
+   return uM;
+ }else if (x >= x_1){
+   const Euler::W_state wR(1.3764,-0.394,0.0,1.5698);
+   Euler::U_state uR = e.CfromP(wR);
+   return uR;
+ }else{
+   std::cout<<"Something went wrong inside inital function in main.cpp"<<std::endl;
+   Euler::U_state u;
+   return u;
+ }
 
 }
 
+Euler::U_state collision_perpendicular_to_y_axis(double x,double y){
+  
+  const double y_0 = 0.3;
+  const double y_1 = 0.7;
+  
+  Euler e;
+
+ if (y<=y_0){
+    
+   const Euler::W_state wL(1.3764,0.394,0.0,1.5698);
+   Euler::U_state uL = e.CfromP(wL);
+   return uL;
+ }else if(y_0 < y && y < y_1){
+   const Euler::W_state wM(1.0,0.0,0.0,1.0);
+   Euler::U_state uM = e.CfromP(wR);
+   return uM;
+ }else if (y >= y_1){
+   const Euler::W_state wR(1.3764,-0.394,0.0,1.5698);
+   Euler::U_state uR = e.CfromP(wR);
+   return uR;
+ }else{
+   std::cout<<"Something went wrong inside inital function in main.cpp"<<std::endl;
+   Euler::U_state u;
+   return u;
+ }
+
+}
+
+Euler::U_state collision_diagonal(double x,double y){
+  
+  const double x_0 = 0.3;
+  const double x_1 = 0.7;
+  
+  Euler e;
+
+  if (y <= (0.3-x)  ){
+    
+   const Euler::W_state wL(1.3764,0.394,0.0,1.5698);
+   Euler::U_state uL = e.CfromP(wL);
+   return uL;
+  }else if((0.3-x) > y && y < (0.7-x)){
+   const Euler::W_state wM(1.0,0.0,0.0,1.0);
+   Euler::U_state uM = e.CfromP(wR);
+   return uM;
+  }else if (y >= (0.7-x)){
+   const Euler::W_state wR(1.3764,-0.394,0.0,1.5698);
+   Euler::U_state uR = e.CfromP(wR);
+   return uR;
+ }else{
+   std::cout<<"Something went wrong inside inital function in main.cpp"<<std::endl;
+   Euler::U_state u;
+   return u;
+ }
+
+}
+
+Euler::U_state collision_angle(double x,double y){
+  
+  const double x_0 = 0.3;
+  const double x_1 = 0.7;
+  
+  Euler e;
+
+  if (y <= (0.3-1.5*x)  ){
+    
+   const Euler::W_state wL(1.3764,0.394,0.0,1.5698);
+   Euler::U_state uL = e.CfromP(wL);
+   return uL;
+  }else if((0.3-1.5*x) > y && y < (0.7-1.5*x)){
+   const Euler::W_state wM(1.0,0.0,0.0,1.0);
+   Euler::U_state uM = e.CfromP(wR);
+   return uM;
+  }else if (y >= (0.7-1.5*x)){
+   const Euler::W_state wR(1.3764,-0.394,0.0,1.5698);
+   Euler::U_state uR = e.CfromP(wR);
+   return uR;
+ }else{
+   std::cout<<"Something went wrong inside inital function in main.cpp"<<std::endl;
+   Euler::U_state u;
+   return u;
+ }
+
+}
 
 //Exact riemann solver function
 
@@ -203,8 +290,8 @@ int main(int argc, char* argv[]){
   //Parameters of the problem
  
   
-  double x_min = 0, x_max = 2.0; //domain length
-  double y_min = 0, y_max = 2.0;
+  double x_min = 0.0, x_max = 1.0; //domain length
+  double y_min = 0.0, y_max = 1.0;
   double cfl = 0.9;
   int ncells = 100;
   /*
@@ -215,7 +302,7 @@ int main(int argc, char* argv[]){
   } */
  int nGhost = 2;
 
- Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, cylinder, Trans_Left_Bound, Trans_Right_Bound, nGhost);
+ Mesh m(ncells, x_min, x_max,y_min,y_max,cfl, Sod_xdir, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   //Mesh n(ncells, x_min, x_max, cfl, initial_test1, Trans_Left_Bound, Trans_Right_Bound, nGhost);
   // double dt_m;
   // double dt_n;
@@ -238,34 +325,29 @@ int main(int argc, char* argv[]){
     std::cout << m.Bdata(col,102).rho << "\n";
   
     }*/
-  std::cout << "Right boundary with transmissive conditions" << "\n";
-  std::cout << m.Bdata(nGhost,5).rho << "\n";
-  std::cout << "Top boundary with transmissive conditions" << "\n";
-  std::cout << m.Bdata(5,nGhost).rho << "\n";
-  std::cout << "Bottom boundary with transmissive conditions" << "\n";
-  std::cout << m.Bdata(5,0).rho << "\n";
-  //Need to test calculate_dt();
-  
   
   double dt;
-  dt = m.Calculate_dt();
   
+  double T_max = 0.2;
+  std::string Snap = "Sod_x_dir_snap_";
+  std::string slice_x_axis = "x_axis_slice_";
+  std::string slice_y_axis = "y_axis_slice_";
   
-
-  //This selects all the columns of the 5th row
-
-  double T_max = 0.25;
-
   for(double t = 0; t<T_max; t+=dt){
     dt = m.Calculate_dt();
     m.applyBC();
     flux_and_update(m,dt,std::string("XY"));
+    m.time++;
     dt = m.Calculate_dt();
     m.applyBC();
     flux_and_update(m,dt,std::string("YX"));
-    
+    m.time++;
+   
+    m.save_u_state(Snap);
+    m.slice_x_axis(slice_x_axis);
+    m.slice_y_axis(slice_y_axis);
   }
-  std::string file_output = "2D_cylinder_test";
+  std::string file_output = "Sod_x_dir_";
   m.save_u_state(file_output);
 
  /*

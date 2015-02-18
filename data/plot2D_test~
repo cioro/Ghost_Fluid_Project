@@ -1,14 +1,19 @@
-set term postscript enhanced colour size 10,7
-set output "cylinder_test.eps"
+set term postscript enhanced colour size 10,10
+
 
 
 set view map
 set pm3d
 unset surface
-splot "2D_cylinder_test0" using 1:2:3
-#set output "Sod_y_dir_moment_u50.eps"
-#splot "2D_y_dir_sod_test0" using 1:2:4
-#set output "Sod_y_dir_moment_v50.eps"
-#splot "2D_y_dir_sod_test0" using 1:2:5
-#set output "Sod_y_dir_energy50.eps"
-#splot "2D_y_dir_sod_test0" using 1:2:6
+set output "cylinder_snap_68.eps"
+splot "cylinder_snap_68" using 1:2:3
+set output "cylinder_snap_30.eps"
+splot "cylinder_snap_30" using 1:2:3
+set output "cylinder_snap_20.eps"
+splot "cylinder_snap_20" using 1:2:3
+set output "cylinder_snap_10.eps"
+splot "cylinder_snap_10" using 1:2:3
+
+
+##set output "cylinder_snap_.eps"
+##splot "cylinder_snap_" using 1:2:3
